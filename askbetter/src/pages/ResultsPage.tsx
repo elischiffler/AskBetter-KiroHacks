@@ -11,6 +11,7 @@ import {
   Send,
 } from 'lucide-react';
 import type { AnalysisResult } from '../analysis/types';
+import { Header } from '../components/Header';
 import { streamChatReply, type ChatMessage } from '../lib/chatClient';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -220,9 +221,10 @@ export function ResultsPage() {
 
   return (
     <div
-      className="min-h-screen px-4 py-6"
+      className="min-h-screen px-4 py-6 pt-20"
       style={{ background: 'linear-gradient(135deg, #e8eaf6 0%, #ede9f7 50%, #e3e8f5 100%)' }}
     >
+      <Header />
       <div className="max-w-xl mx-auto">
         {/* Back nav */}
         <button
