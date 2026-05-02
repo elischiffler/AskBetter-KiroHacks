@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Link2, FileText, Loader2 } from 'lucide-react';
+import { Link2, Loader2 } from 'lucide-react';
 import { analyzeConversation } from '../analysis/analyzer';
 import { parseConversation } from '../analysis/parser';
 import {
@@ -8,9 +8,43 @@ import {
   getPromptsFromInput,
   getLinkErrorMessage,
 } from '../analysis/linkParser';
-import { SAMPLE_CONVERSATION, SAMPLE_PASSIVE_CONVERSATION } from '../lib/sampleData';
-import { Header } from '../components/Header';
 
+// ---------------------------------------------------------------------------
+// Animated grid component (CSS-only, no canvas)
+// ---------------------------------------------------------------------------
+function AnimatedGrid() {
+  return (
+    <div className="relative z-0 w-full h-full overflow-hidden" aria-hidden="true">
+      {/* Perspective grid lines — horizontal */}
+      <div className="absolute inset-0 flex flex-col justify-center items-center">
+        <div
+          className="w-full h-full"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(139,92,246,0.25) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(139,92,246,0.25) 1px, transparent 1px)
+            `,
+            backgroundSize: '60px 60px',
+            transform: 'perspective(600px) rotateX(40deg) scale(2)',
+            transformOrigin: 'center top',
+            animation: 'gridScroll 6s linear infinite',
+          }}
+        />
+      </div>
+      {/* Radial vignette overlay */}
+      <div
+        className="absolute inset-0 z-10"
+        style={{
+          background: 'radial-gradient(ellipse at center, transparent 30%, #0f0a1e 80%)',
+        }}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
 export function InputPage() {
   const [url, setUrl] = useState('');
   const [text, setText] = useState('');
@@ -18,6 +52,26 @@ export function InputPage() {
   const [mode, setMode] = useState<'link' | 'paste'>('link');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const formRef = useRef<HTMLDivElement>(null);
+
+  // Inject keyframe animation once
+  useEffect(() => {
+    const id = 'grid-scroll-keyframes';
+    if (document.getElementById(id)) return;
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = `
+      @keyframes gridScroll {
+        from { background-position: 0 0; }
+        to   { background-position: 0 60px; }
+      }
+    `;
+    document.head.appendChild(style);
+  }, []);
+
+  const scrollToForm = () => {
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const handleAnalyze = async () => {
     setError('');
@@ -32,7 +86,6 @@ export function InputPage() {
       return;
     }
 
-    // Paste mode — skip fetch, go straight to parser
     if (mode === 'paste') {
       const prompts = parseConversation(input);
       if (prompts.length === 0) {
@@ -44,7 +97,6 @@ export function InputPage() {
       return;
     }
 
-    // Link mode — validate before fetching
     if (!isChatGPTShareUrl(input)) {
       setError(
         "That doesn't look like a ChatGPT share link. It should start with https://chatgpt.com/share/"
@@ -69,167 +121,232 @@ export function InputPage() {
     }
   };
 
-  const loadSample = (sample: string) => {
-    setText(sample);
-    setUrl('');
-    setMode('paste');
-    setError('');
-  };
-
   const isDisabled = isLoading || (mode === 'link' ? !url.trim() : !text.trim());
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4 py-12 pt-20"
-      style={{ background: 'linear-gradient(135deg, #e8eaf6 0%, #ede9f7 50%, #e3e8f5 100%)' }}
-    >
-      <Header />
-      <div className="w-full max-w-xl">
-        {/* Card */}
-        <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/60 p-10">
-          {/* Icon */}
-          <div className="flex justify-center mb-6">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: '#e8eaf6' }}
-            >
-              <Link2 className="w-7 h-7" style={{ color: '#4338ca' }} />
-            </div>
-          </div>
-
-          {/* Title */}
-          <h1 className="text-3xl font-bold text-center mb-2" style={{ color: '#3730a3' }}>
-            ChatGPT Chat Analyzer
-          </h1>
-          <p className="text-center text-gray-500 text-sm mb-8">
-            Paste your ChatGPT share link below to get detailed insights and feedback
+    <div className="min-h-screen" style={{ backgroundColor: '#0f0a1e', color: '#f5f3ff' }}>
+      {/* ------------------------------------------------------------------ */}
+      {/* HERO SECTION                                                         */}
+      {/* ------------------------------------------------------------------ */}
+      <section className="relative flex items-center min-h-screen">
+        {/* Left column */}
+        <div className="relative z-10 flex flex-col justify-center px-16 md:px-28 w-full md:w-1/2 py-24">
+          {/* Eyebrow */}
+          <p
+            className="text-xs font-semibold tracking-widest uppercase mb-6"
+            style={{ color: '#a78bfa' }}
+          >
+            AI Prompt Analysis
           </p>
 
-          {/* Mode toggle */}
-          <div className="flex gap-2 mb-5">
+          {/* Headline */}
+          <h1
+            className="text-6xl md:text-7xl font-black uppercase leading-none tracking-tight mb-6"
+            style={{ color: '#f5f3ff' }}
+          >
+            Ask
+            <br />
+            <span style={{ color: '#7c3aed' }}>Better</span>
+          </h1>
+
+          {/* Subtext */}
+          <p className="text-lg md:text-xl font-medium mb-10" style={{ color: '#c4b5fd' }}>
+            Better Questions, Better Answers
+          </p>
+
+          {/* CTA */}
+          <div>
             <button
-              onClick={() => {
-                setMode('link');
-                setError('');
+              onClick={scrollToForm}
+              className="inline-flex items-center gap-2 px-8 py-4 text-sm font-bold uppercase tracking-widest transition-all active:scale-95"
+              style={{
+                backgroundColor: '#7c3aed',
+                color: '#f5f3ff',
               }}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${
-                mode === 'link'
-                  ? 'text-white shadow-sm'
-                  : 'text-gray-500 bg-gray-100 hover:bg-gray-200'
-              }`}
-              style={mode === 'link' ? { backgroundColor: '#4338ca' } : {}}
+              onMouseEnter={(e) =>
+                ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#6d28d9')
+              }
+              onMouseLeave={(e) =>
+                ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#7c3aed')
+              }
             >
-              Share Link
-            </button>
-            <button
-              onClick={() => {
-                setMode('paste');
-                setError('');
-              }}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${
-                mode === 'paste'
-                  ? 'text-white shadow-sm'
-                  : 'text-gray-500 bg-gray-100 hover:bg-gray-200'
-              }`}
-              style={mode === 'paste' ? { backgroundColor: '#4338ca' } : {}}
-            >
-              Paste Text
+              Analyze Now
+              <span aria-hidden="true">↓</span>
             </button>
           </div>
+        </div>
 
-          {/* Input */}
-          {mode === 'link' ? (
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                ChatGPT Share Link
-              </label>
-              <input
-                type="url"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition"
-                style={{ '--tw-ring-color': '#4338ca' } as React.CSSProperties}
-                placeholder="https://chatgpt.com/share/..."
-                value={url}
-                disabled={isLoading}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  setUrl(e.target.value);
-                  setError('');
-                }}
-                onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && void handleAnalyze()}
-              />
-            </div>
-          ) : (
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Conversation Text
-              </label>
-              <textarea
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:border-transparent transition"
-                style={{ '--tw-ring-color': '#4338ca' } as React.CSSProperties}
-                placeholder={`Paste your ChatGPT conversation here...\n\nYou: Write me a Python script...\nChatGPT: Sure! Here's...\nYou: Why does this work?`}
-                rows={6}
-                value={text}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
-                  setText(e.target.value);
-                  setError('');
-                }}
-              />
-            </div>
-          )}
+        {/* Right column — animated grid + logo overlay */}
+        <div className="hidden md:block absolute right-0 top-0 h-full" style={{ width: '50%' }}>
+          <AnimatedGrid />
+          {/* Logo centered over the grid, above the vignette */}
+          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+            <img src="/logo.png" alt="AskBetter" className="w-[600px] object-contain" />
+          </div>
+        </div>
 
-          {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
+        {/* Bottom border line */}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-px"
+          style={{ backgroundColor: 'rgba(139,92,246,0.2)' }}
+        />
+      </section>
 
-          {/* Analyze button */}
-          <button
-            onClick={() => void handleAnalyze()}
-            disabled={isDisabled}
-            className="w-full mt-4 py-3.5 rounded-xl text-white font-semibold text-sm transition active:scale-[0.98] flex items-center justify-center gap-2"
+      {/* ------------------------------------------------------------------ */}
+      {/* INPUT FORM SECTION                                                   */}
+      {/* ------------------------------------------------------------------ */}
+      <section
+        ref={formRef}
+        className="flex justify-center items-start px-4 py-24"
+        style={{ backgroundColor: '#0f0a1e' }}
+      >
+        <div className="w-full max-w-xl">
+          {/* Section label */}
+          <p
+            className="text-xs font-semibold tracking-widest uppercase mb-3 text-center"
+            style={{ color: '#a78bfa' }}
+          >
+            Get Started
+          </p>
+          <h2
+            className="text-3xl font-black uppercase text-center mb-10"
+            style={{ color: '#f5f3ff' }}
+          >
+            Analyze Your Chat
+          </h2>
+
+          {/* Card */}
+          <div
+            className="rounded-2xl p-8"
             style={{
-              backgroundColor: isDisabled ? '#c7c9d9' : '#4338ca',
-              cursor: isDisabled ? 'not-allowed' : 'pointer',
+              backgroundColor: '#1a1030',
+              border: '1px solid rgba(139,92,246,0.25)',
             }}
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Reading conversation…
-              </>
+            {/* Mode toggle */}
+            <div className="flex gap-1 mb-6 p-1 rounded-xl" style={{ backgroundColor: '#0f0a1e' }}>
+              {(['link', 'paste'] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    setMode(m);
+                    setError('');
+                  }}
+                  className="flex-1 py-2 rounded-lg text-sm font-semibold transition"
+                  style={
+                    mode === m
+                      ? { backgroundColor: '#7c3aed', color: '#f5f3ff' }
+                      : { color: '#a78bfa' }
+                  }
+                >
+                  {m === 'link' ? 'Share Link' : 'Paste Text'}
+                </button>
+              ))}
+            </div>
+
+            {/* Input */}
+            {mode === 'link' ? (
+              <div className="mb-4">
+                <label
+                  className="block text-xs font-semibold uppercase tracking-wider mb-2"
+                  style={{ color: '#a78bfa' }}
+                >
+                  ChatGPT Share Link
+                </label>
+                <div className="relative">
+                  <Link2
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                    style={{ color: '#7c3aed' }}
+                  />
+                  <input
+                    type="url"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl text-sm placeholder-opacity-40 focus:outline-none transition"
+                    style={{
+                      backgroundColor: '#0f0a1e',
+                      border: '1px solid rgba(139,92,246,0.3)',
+                      color: '#f5f3ff',
+                    }}
+                    placeholder="https://chatgpt.com/share/..."
+                    value={url}
+                    disabled={isLoading}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      setUrl(e.target.value);
+                      setError('');
+                    }}
+                    onKeyDown={(e: React.KeyboardEvent) =>
+                      e.key === 'Enter' && void handleAnalyze()
+                    }
+                    onFocus={(e) =>
+                      (e.currentTarget.style.border = '1px solid rgba(139,92,246,0.8)')
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.border = '1px solid rgba(139,92,246,0.3)')
+                    }
+                  />
+                </div>
+              </div>
             ) : (
-              'Analyze Chat'
+              <div className="mb-4">
+                <label
+                  className="block text-xs font-semibold uppercase tracking-wider mb-2"
+                  style={{ color: '#a78bfa' }}
+                >
+                  Conversation Text
+                </label>
+                <textarea
+                  className="w-full px-4 py-3 rounded-xl text-sm resize-none focus:outline-none transition"
+                  style={{
+                    backgroundColor: '#0f0a1e',
+                    border: '1px solid rgba(139,92,246,0.3)',
+                    color: '#f5f3ff',
+                  }}
+                  placeholder={`Paste your ChatGPT conversation here...\n\nYou: Write me a Python script...\nChatGPT: Sure! Here's...\nYou: Why does this work?`}
+                  rows={7}
+                  value={text}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+                    setText(e.target.value);
+                    setError('');
+                  }}
+                  onFocus={(e) => (e.currentTarget.style.border = '1px solid rgba(139,92,246,0.8)')}
+                  onBlur={(e) => (e.currentTarget.style.border = '1px solid rgba(139,92,246,0.3)')}
+                />
+              </div>
             )}
-          </button>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-gray-100" />
-            <span className="text-xs text-gray-400">or try a sample</span>
-            <div className="flex-1 h-px bg-gray-100" />
-          </div>
+            {error && (
+              <p className="text-xs mb-3" style={{ color: '#f87171' }}>
+                {error}
+              </p>
+            )}
 
-          {/* Sample buttons */}
-          <div className="flex gap-2">
+            {/* Analyze button */}
             <button
-              onClick={() => loadSample(SAMPLE_CONVERSATION)}
-              className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 py-2 px-3 rounded-lg border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 transition"
+              onClick={() => void handleAnalyze()}
+              disabled={isDisabled}
+              className="w-full py-3.5 rounded-xl text-sm font-bold uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              style={{
+                backgroundColor: isDisabled ? '#3b2f5e' : '#7c3aed',
+                color: isDisabled ? '#6b5fa0' : '#f5f3ff',
+                cursor: isDisabled ? 'not-allowed' : 'pointer',
+              }}
             >
-              <FileText className="w-3.5 h-3.5" />
-              Active sample
-            </button>
-            <button
-              onClick={() => loadSample(SAMPLE_PASSIVE_CONVERSATION)}
-              className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 py-2 px-3 rounded-lg border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 transition"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              Passive sample
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Reading conversation…
+                </>
+              ) : (
+                'Analyze Chat'
+              )}
             </button>
           </div>
 
           {/* Footer note */}
-          <p className="text-center text-xs text-gray-400 mt-6 leading-relaxed">
-            This tool analyzes your ChatGPT conversations to provide insights on conversation
-            quality, tone, and effectiveness
+          <p className="text-center text-xs mt-6" style={{ color: '#6b5fa0' }}>
+            No account needed. Analysis runs entirely in your browser.
           </p>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
