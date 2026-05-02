@@ -15,6 +15,18 @@
         "get_figma_data",
         "get_figma_data"
       ]
+    },
+    "power-supabase-hosted-supabase": {
+      "url": "https://mcp.supabase.com/mcp",
+      "headers": {
+        "Authorization": "sbp_4709783c2aa17e251688f7cdb867ff2bfa871145"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "list_projects",
+        "get_project_url",
+        "get_publishable_keys"
+      ]
     }
   }
 }

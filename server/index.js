@@ -1,6 +1,26 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const fetch = require("node-fetch");
+const { createClient } = require("@supabase/supabase-js");
+
+// ---------------------------------------------------------------------------
+// Supabase client
+// ---------------------------------------------------------------------------
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn(
+    "[supabase] SUPABASE_URL or SUPABASE_ANON_KEY not set — Supabase features disabled.",
+  );
+}
+
+const supabase =
+  SUPABASE_URL && SUPABASE_ANON_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -121,10 +141,53 @@ app.get("/api/fetch-share", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Root
+// ---------------------------------------------------------------------------
+app.get("/", (_req, res) => {
+  res.send("Hello World from AskBetter server 👋");
+});
+
+// ---------------------------------------------------------------------------
+// Supabase connection check
+// ---------------------------------------------------------------------------
+app.get("/api/supabase-health", async (_req, res) => {
+  if (!supabase) {
+    return res.status(503).json({
+      ok: false,
+      error: "Supabase client not initialised — check SUPABASE_URL and SUPABASE_ANON_KEY env vars.",
+    });
+  }
+
+  try {
+    // execute_sql equivalent via the JS client — select 1 is the lightest
+    // possible query that confirms the PostgREST connection is alive.
+    const { error } = await supabase.rpc("version");
+
+    // "function not found" (PGRST202) still means the connection is live
+    if (error && error.code !== "PGRST202") {
+      // Try an even simpler approach: list tables (will return empty array, not error)
+      const { error: err2 } = await supabase.from("nonexistent_table_ping").select("id").limit(1);
+      // PGRST116 = no rows, 42P01 = table doesn't exist — both mean we're connected
+      if (err2 && err2.code !== "PGRST116" && err2.code !== "42P01" && !err2.message.includes("does not exist")) {
+        return res.status(502).json({ ok: false, error: err2.message });
+      }
+    }
+
+    return res.json({
+      ok: true,
+      project: SUPABASE_URL,
+      message: "Connected to Supabase successfully.",
+    });
+  } catch (err) {
+    return res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Health check
 // ---------------------------------------------------------------------------
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, supabase: !!supabase });
 });
 
 app.listen(PORT, () => {
