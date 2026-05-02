@@ -222,15 +222,46 @@ I can help you rewrite these prompts to be more effective and get better AI resp
     setInput('');
     setShowActionButtons(false); // Hide action buttons once user starts chatting
 
-    const nextMessages: ChatMessage[] = [...messages, { role: 'user', content }];
-    setMessages([...nextMessages, { role: 'assistant', content: '' }]);
+    // Build context message with original prompts
+    const contextMessage: ChatMessage = {
+      role: 'user' as const,
+      content: `[CONTEXT] Here are the original prompts I analyzed:
+
+${result.prompts.map((p, i) => `Prompt ${i + 1} (Score: ${p.qualityScore}/100, Intent: ${p.primaryIntent}):
+"${p.text}"
+Flags: ${p.flags.length > 0 ? p.flags.join(', ') : 'none'}
+`).join('\n')}
+
+Analysis Summary:
+- Overall Quality: ${result.scores.overallQuality}/100
+- Autonomy: ${result.scores.autonomy}/100
+- Curiosity: ${result.scores.curiosity}/100
+- Critical Thinking: ${result.scores.criticalThinking}/100
+- Specificity: ${result.scores.specificity}/100
+- Context: ${result.scores.context}/100
+- Engagement: ${result.scores.engagement}/100
+
+Patterns Detected: ${result.patterns.map(p => p.label).join(', ')}
+
+Now, here's my question:`
+    };
+
+    const userMessage: ChatMessage = { role: 'user' as const, content };
+    
+    // For the first user message, include context
+    const isFirstUserMessage = messages.filter(m => m.role === 'user').length === 0;
+    const messagesToSend = isFirstUserMessage 
+      ? [contextMessage, ...messages, userMessage]
+      : [...messages, userMessage];
+
+    setMessages([...messages, userMessage, { role: 'assistant' as const, content: '' }]);
     setIsStreaming(true);
 
     let assistantText = '';
     let streamError = '';
 
     try {
-      await streamChatReply(nextMessages, {
+      await streamChatReply(messagesToSend, {
         onToken: (token) => {
           assistantText += token;
           setMessages((prev) => {
@@ -279,14 +310,36 @@ ${worstPrompts.map((p, i) => `${i + 1}. "${p.text.substring(0, 80)}${p.text.leng
 
 Let's start with the first one. What were you trying to accomplish with this prompt? What context or background information should the AI know?`;
 
+    // Build context message with original prompts
+    const contextMessage: ChatMessage = {
+      role: 'user' as const,
+      content: `[CONTEXT] Here are the original prompts I analyzed:
+
+${result.prompts.map((p, i) => `Prompt ${i + 1} (Score: ${p.qualityScore}/100, Intent: ${p.primaryIntent}):
+"${p.text}"
+Flags: ${p.flags.length > 0 ? p.flags.join(', ') : 'none'}
+`).join('\n')}
+
+Analysis Summary:
+- Overall Quality: ${result.scores.overallQuality}/100
+- Autonomy: ${result.scores.autonomy}/100
+- Curiosity: ${result.scores.curiosity}/100
+- Critical Thinking: ${result.scores.criticalThinking}/100
+
+Patterns Detected: ${result.patterns.map(p => p.label).join(', ')}
+
+Now, I want to improve my prompts.`
+    };
+
     const userMessage: ChatMessage = { role: 'user' as const, content: 'Draft Better' };
-    const nextMessages = [...messages, userMessage, { role: 'assistant' as const, content: '' }];
-    setMessages(nextMessages);
+    const messagesToSend = [contextMessage, ...messages, userMessage];
+    
+    setMessages([...messages, userMessage, { role: 'assistant' as const, content: '' }]);
     setIsStreaming(true);
 
     let assistantText = '';
     try {
-      await streamChatReply([...messages, userMessage], {
+      await streamChatReply(messagesToSend, {
         onToken: (token) => {
           assistantText += token;
           setMessages((prev) => {
