@@ -86,13 +86,33 @@ export function ScoreCard({ scores }: ScoreCardProps) {
   ];
 
   return (
-    <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+    <div
+      className="rounded-2xl p-6"
+      style={{
+        backgroundColor: '#1a1030',
+        border: '1px solid rgba(139, 92, 246, 0.25)',
+      }}
+    >
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold text-white">Your Scores</h2>
-        <div className="flex items-center gap-2 bg-slate-700 rounded-full px-4 py-1.5">
-          <span className="text-slate-400 text-sm">Overall</span>
-          <span className="text-white font-bold text-lg">{scores.overallQuality}</span>
-          <span className="text-slate-400 text-sm">/100</span>
+        <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: '#a78bfa' }}>
+          Your Scores
+        </h2>
+        <div
+          className="flex items-center gap-2 rounded-xl px-4 py-1.5"
+          style={{
+            backgroundColor: 'rgba(124,58,237,0.15)',
+            border: '1px solid rgba(139,92,246,0.25)',
+          }}
+        >
+          <span className="text-xs" style={{ color: '#6b5fa0' }}>
+            Overall
+          </span>
+          <span className="font-black text-lg" style={{ color: '#a78bfa' }}>
+            {scores.overallQuality}
+          </span>
+          <span className="text-xs" style={{ color: '#6b5fa0' }}>
+            /100
+          </span>
         </div>
       </div>
       <div className="grid grid-cols-3 md:grid-cols-6 gap-2">

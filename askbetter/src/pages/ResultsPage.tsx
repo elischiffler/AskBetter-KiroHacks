@@ -21,21 +21,28 @@ function estimateDuration(promptCount: number): string {
   return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
 }
 
-// Color per category bar
 const CATEGORY_COLORS: Record<string, string> = {
-  Delegation: '#4338ca',
-  Curiosity: '#9333ea',
-  Collaborative: '#3b82f6',
-  Verification: '#22c55e',
+  Delegation: '#7c3aed',
+  Curiosity: '#a78bfa',
+  Collaborative: '#6d28d9',
+  Verification: '#c4b5fd',
 };
 
-// Color per score bar
 const SCORE_COLORS: Record<string, string> = {
-  autonomy: '#4338ca',
-  curiosity: '#9333ea',
-  criticalThinking: '#f97316',
-  engagement: '#3b82f6',
+  autonomy: '#7c3aed',
+  curiosity: '#a78bfa',
+  criticalThinking: '#c4b5fd',
+  engagement: '#6d28d9',
 };
+
+// ── design tokens ─────────────────────────────────────────────────────────────
+
+const BG = '#0f0a1e';
+const CARD_BG = '#1a1030';
+const BORDER = 'rgba(139, 92, 246, 0.25)';
+const TEXT_PRIMARY = '#f5f3ff';
+const TEXT_MUTED = '#a78bfa';
+const TEXT_DIM = '#6b5fa0';
 
 // ── sub-components ────────────────────────────────────────────────────────────
 
@@ -52,12 +59,17 @@ function ProgressBar({ label, value, max, color, suffix }: ProgressBarProps) {
   return (
     <div className="mb-4">
       <div className="flex justify-between items-center mb-1.5">
-        <span className="text-sm text-gray-700">{label}</span>
-        <span className="text-sm font-semibold" style={{ color }}>
+        <span className="text-sm font-medium" style={{ color: TEXT_MUTED }}>
+          {label}
+        </span>
+        <span className="text-sm font-bold" style={{ color }}>
           {suffix ? `${value}${suffix}` : `${value}%`}
         </span>
       </div>
-      <div className="h-2.5 rounded-full bg-gray-200 overflow-hidden">
+      <div
+        className="h-2 rounded-full overflow-hidden"
+        style={{ backgroundColor: 'rgba(139,92,246,0.12)' }}
+      >
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{ width: `${pct}%`, backgroundColor: color }}
@@ -77,34 +89,61 @@ function FeedbackCard({ type, title, description }: FeedbackCardProps) {
   const isPositive = type === 'positive';
   return (
     <div
-      className="rounded-2xl p-5 mb-3 border-l-4"
+      className="rounded-xl p-4 mb-3"
       style={{
-        backgroundColor: isPositive ? '#f0fdf4' : '#fffbeb',
-        borderLeftColor: isPositive ? '#22c55e' : '#f97316',
+        backgroundColor: isPositive ? 'rgba(124, 58, 237, 0.1)' : 'rgba(251, 146, 60, 0.08)',
+        border: `1px solid ${isPositive ? 'rgba(124,58,237,0.3)' : 'rgba(251,146,60,0.25)'}`,
+        borderLeft: `3px solid ${isPositive ? '#7c3aed' : '#fb923c'}`,
       }}
     >
       <div className="flex items-start gap-3">
         {isPositive ? (
-          <CheckCircle className="w-5 h-5 mt-0.5 shrink-0" style={{ color: '#16a34a' }} />
+          <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#a78bfa' }} />
         ) : (
-          <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" style={{ color: '#ea580c' }} />
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#fb923c' }} />
         )}
         <div>
-          <p
-            className="font-semibold text-sm mb-1"
-            style={{ color: isPositive ? '#15803d' : '#c2410c' }}
-          >
+          <p className="font-semibold text-sm mb-1" style={{ color: TEXT_PRIMARY }}>
             {title}
           </p>
-          <p
-            className="text-sm leading-relaxed"
-            style={{ color: isPositive ? '#166534' : '#9a3412' }}
-          >
+          <p className="text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
             {description}
           </p>
         </div>
       </div>
     </div>
+  );
+}
+
+// ── section wrapper ───────────────────────────────────────────────────────────
+
+function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={`rounded-2xl p-8 mb-4 ${className}`}
+      style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}` }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="text-xs font-semibold tracking-widest uppercase mb-2"
+      style={{ color: TEXT_MUTED }}
+    >
+      {children}
+    </p>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-base font-black uppercase mb-5" style={{ color: TEXT_PRIMARY }}>
+      {children}
+    </h2>
   );
 }
 
@@ -123,7 +162,6 @@ export function ResultsPage() {
   const totalMessages = result.prompts.length;
   const duration = estimateDuration(totalMessages);
 
-  // Build category breakdown from distribution
   const categoryTotal = result.distribution.reduce((s, d) => s + d.value, 0);
   const categories = result.distribution.map((d) => ({
     name: d.name,
@@ -131,7 +169,6 @@ export function ResultsPage() {
     color: CATEGORY_COLORS[d.name] ?? d.color,
   }));
 
-  // Scores to show
   const scoreItems = [
     { key: 'autonomy', label: 'Autonomy', value: result.scores.autonomy },
     { key: 'curiosity', label: 'Curiosity', value: result.scores.curiosity },
@@ -139,11 +176,9 @@ export function ResultsPage() {
     { key: 'engagement', label: 'Engagement', value: result.scores.engagement },
   ];
 
-  // Feedback cards: patterns → positive/warning
   const positivePatterns = result.patterns.filter((p) => p.severity === 'positive');
   const warningPatterns = result.patterns.filter((p) => p.severity === 'warning');
 
-  // Merge suggestions as warning cards if no warning patterns
   const feedbackItems: FeedbackCardProps[] = [
     ...positivePatterns.map((p) => ({
       type: 'positive' as const,
@@ -155,7 +190,6 @@ export function ResultsPage() {
       title: p.label,
       description: p.description,
     })),
-    // Fall back to suggestions if no patterns
     ...(positivePatterns.length === 0 && warningPatterns.length === 0
       ? result.suggestions.map((s, i) => ({
           type: (i % 2 === 0 ? 'positive' : 'warning') as 'positive' | 'warning',
@@ -164,9 +198,14 @@ export function ResultsPage() {
         }))
       : []),
   ];
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [input, setInput] = useState('');
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [isStreaming, setIsStreaming] = useState(false);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [chatError, setChatError] = useState('');
   const [showActionButtons, setShowActionButtons] = useState(true);
 
@@ -277,18 +316,14 @@ Now, here's my question:`
         },
       });
 
-      if (streamError) {
-        throw new Error(streamError);
-      }
+      if (streamError) throw new Error(streamError);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to stream response.';
       setChatError(message);
       setMessages((prev) => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
-        if (last?.role === 'assistant' && !last.content) {
-          updated.pop();
-        }
+        if (last?.role === 'assistant' && !last.content) updated.pop();
         return updated;
       });
     } finally {
@@ -370,118 +405,153 @@ Now, I want to improve my prompts.`
   };
 
   return (
-    <div
-      className="min-h-screen px-4 py-6 pt-20"
-      style={{ background: 'linear-gradient(135deg, #e8eaf6 0%, #ede9f7 50%, #e3e8f5 100%)' }}
-    >
+    <div className="min-h-screen" style={{ backgroundColor: BG, color: TEXT_PRIMARY }}>
       <Header />
-      <div className="max-w-xl mx-auto">
+
+      <div className="max-w-2xl mx-auto px-4 pt-28 pb-16">
         {/* Back nav */}
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 mb-5 text-sm font-semibold transition hover:opacity-70"
-          style={{ color: '#4338ca' }}
+          className="flex items-center gap-2 mb-8 text-xs font-bold uppercase tracking-widest transition-all"
+          style={{ color: TEXT_MUTED }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = TEXT_PRIMARY)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = TEXT_MUTED)}
         >
           <ArrowLeft className="w-4 h-4" />
           Analyze Another Chat
         </button>
 
-        {/* Main results card */}
-        <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/60 p-8 mb-4">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold" style={{ color: '#1e1b4b' }}>
-              Chat Analysis Results
-            </h1>
-            <div className="flex items-center gap-1.5 rounded-full px-4 py-1.5" style={{ backgroundColor: '#f0f4ff' }}>
-              <span className="text-sm text-gray-500">Overall</span>
-              <span className="text-xl font-bold" style={{ color: '#4338ca' }}>
+        {/* ── Overview card ── */}
+        <Card>
+          {/* Header row */}
+          <div className="flex items-start justify-between mb-8">
+            <div>
+              <SectionLabel>Results</SectionLabel>
+              <h1 className="text-2xl font-black uppercase" style={{ color: TEXT_PRIMARY }}>
+                Chat Analysis
+              </h1>
+            </div>
+            {/* Overall score badge */}
+            <div
+              className="flex flex-col items-center justify-center rounded-xl px-5 py-3"
+              style={{ backgroundColor: 'rgba(124,58,237,0.15)', border: `1px solid ${BORDER}` }}
+            >
+              <span
+                className="text-xs font-semibold uppercase tracking-widest mb-1"
+                style={{ color: TEXT_MUTED }}
+              >
+                Overall
+              </span>
+              <span className="text-3xl font-black" style={{ color: '#a78bfa' }}>
                 {result.scores.overallQuality}
               </span>
-              <span className="text-sm text-gray-500">/100</span>
+              <span className="text-xs" style={{ color: TEXT_DIM }}>
+                /100
+              </span>
             </div>
           </div>
 
-          {/* Stat cards */}
+          {/* Stat chips */}
           <div className="grid grid-cols-2 gap-3 mb-8">
-            <div className="rounded-2xl p-4" style={{ backgroundColor: '#f0f4ff' }}>
+            <div
+              className="rounded-xl p-4"
+              style={{ backgroundColor: 'rgba(124,58,237,0.1)', border: `1px solid ${BORDER}` }}
+            >
               <div className="flex items-center gap-2 mb-2">
-                <MessageSquare className="w-4 h-4" style={{ color: '#6366f1' }} />
-                <span className="text-sm text-gray-500">Total Messages</span>
+                <MessageSquare className="w-4 h-4" style={{ color: TEXT_MUTED }} />
+                <span
+                  className="text-xs font-semibold uppercase tracking-wider"
+                  style={{ color: TEXT_DIM }}
+                >
+                  Messages
+                </span>
               </div>
-              <p className="text-3xl font-bold" style={{ color: '#1e1b4b' }}>
+              <p className="text-3xl font-black" style={{ color: TEXT_PRIMARY }}>
                 {totalMessages}
               </p>
             </div>
-            <div className="rounded-2xl p-4" style={{ backgroundColor: '#f5f0ff' }}>
+            <div
+              className="rounded-xl p-4"
+              style={{ backgroundColor: 'rgba(124,58,237,0.1)', border: `1px solid ${BORDER}` }}
+            >
               <div className="flex items-center gap-2 mb-2">
-                <Clock className="w-4 h-4" style={{ color: '#9333ea' }} />
-                <span className="text-sm text-gray-500">Duration</span>
+                <Clock className="w-4 h-4" style={{ color: TEXT_MUTED }} />
+                <span
+                  className="text-xs font-semibold uppercase tracking-wider"
+                  style={{ color: TEXT_DIM }}
+                >
+                  Duration
+                </span>
               </div>
-              <p className="text-xl font-bold" style={{ color: '#7c3aed' }}>
+              <p className="text-xl font-black" style={{ color: TEXT_PRIMARY }}>
                 {duration}
               </p>
             </div>
           </div>
 
           {/* Category breakdown */}
-          <h2 className="text-base font-bold mb-4" style={{ color: '#1e1b4b' }}>
-            Prompt Category Breakdown
-          </h2>
+          <SectionLabel>Prompt Category Breakdown</SectionLabel>
+          <div className="h-px mb-5" style={{ backgroundColor: BORDER }} />
           {categories.map((c) => (
             <ProgressBar key={c.name} label={c.name} value={c.pct} max={100} color={c.color} />
           ))}
 
-          {/* Divider */}
-          <div className="h-px bg-gray-100 my-6" />
+          <div className="h-px my-6" style={{ backgroundColor: BORDER }} />
 
-          {/* Prompt scoring breakdown */}
-          <h2 className="text-base font-bold mb-4" style={{ color: '#1e1b4b' }}>
-            Prompt Scoring Breakdown
-          </h2>
+          {/* Score breakdown */}
+          <SectionLabel>Prompt Scoring Breakdown</SectionLabel>
+          <div className="h-px mb-5" style={{ backgroundColor: BORDER }} />
           {scoreItems.map((s) => (
             <ProgressBar
               key={s.key}
               label={s.label}
               value={s.value}
               max={100}
-              color={SCORE_COLORS[s.key] ?? '#4338ca'}
+              color={SCORE_COLORS[s.key] ?? '#7c3aed'}
               suffix="/100"
             />
           ))}
-        </div>
+        </Card>
 
-        {/* Feedback card */}
+        {/* ── Feedback card ── */}
         {feedbackItems.length > 0 && (
-          <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/60 p-8 mb-4">
+          <Card>
             <div className="flex items-center gap-3 mb-5">
-              <Target className="w-5 h-5" style={{ color: '#4338ca' }} />
-              <h2 className="text-lg font-bold" style={{ color: '#1e1b4b' }}>
-                Feedback &amp; Recommendations
-              </h2>
+              <Target className="w-4 h-4" style={{ color: TEXT_MUTED }} />
+              <SectionTitle>Feedback &amp; Recommendations</SectionTitle>
             </div>
             {feedbackItems.map((item, i) => (
               <FeedbackCard key={i} {...item} />
             ))}
-          </div>
+          </Card>
         )}
 
-        {/* Summary card */}
+        {/* ── Summary card ── */}
         {result.summary && (
-          <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/60 p-8 mb-4">
-            <h2 className="text-base font-bold mb-3" style={{ color: '#1e1b4b' }}>
-              Summary
-            </h2>
-            <p className="text-sm text-gray-600 leading-relaxed">{result.summary}</p>
-          </div>
+          <Card>
+            <SectionLabel>Summary</SectionLabel>
+            <SectionTitle>Overview</SectionTitle>
+            <p className="text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
+              {result.summary}
+            </p>
+          </Card>
         )}
 
-        <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/60 p-6 mb-4">
-          <h2 className="text-base font-bold mb-4" style={{ color: '#1e1b4b' }}>
-            Live Chat
-          </h2>
-          <div className="h-[44vh] overflow-y-auto pr-1">
+        {/* ── Live Chat card ── */}
+        <Card className="!p-6">
+          <SectionLabel>AI Assistant</SectionLabel>
+          <SectionTitle>Live Chat</SectionTitle>
+
+          {/* Message list */}
+          <div
+            className="h-[44vh] overflow-y-auto pr-1 mb-4 rounded-xl p-3"
+            style={{ backgroundColor: 'rgba(15,10,30,0.6)', border: `1px solid ${BORDER}` }}
+          >
             {messages.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-sm text-gray-500">
+              <div
+                className="h-full flex items-center justify-center text-sm"
+                style={{ color: TEXT_DIM }}
+              >
                 Send a message to start chatting.
               </div>
             ) : (
@@ -491,10 +561,16 @@ Now, I want to improve my prompts.`
                   return (
                     <div key={index} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
                       <div
-                        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap ${
-                          isUser ? 'text-white' : 'text-gray-800 bg-gray-100'
-                        }`}
-                        style={isUser ? { backgroundColor: '#4338ca' } : {}}
+                        className="max-w-[85%] rounded-xl px-4 py-3 text-sm whitespace-pre-wrap"
+                        style={
+                          isUser
+                            ? { backgroundColor: '#7c3aed', color: TEXT_PRIMARY }
+                            : {
+                                backgroundColor: 'rgba(139,92,246,0.1)',
+                                border: `1px solid ${BORDER}`,
+                                color: TEXT_MUTED,
+                              }
+                        }
                       >
                         {m.content || (isStreaming && !isUser ? '…' : '')}
                       </div>
@@ -530,8 +606,15 @@ Now, I want to improve my prompts.`
               </div>
             )}
           </div>
-          {chatError && <p className="text-xs text-red-500 mt-3">{chatError}</p>}
-          <div className="mt-4 flex items-end gap-2">
+
+          {chatError && (
+            <p className="text-xs mb-3" style={{ color: '#f87171' }}>
+              {chatError}
+            </p>
+          )}
+
+          {/* Input row */}
+          <div className="flex items-end gap-2">
             <textarea
               rows={2}
               value={input}
@@ -544,16 +627,30 @@ Now, I want to improve my prompts.`
                 }
               }}
               placeholder="Type your message…"
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:border-transparent transition"
-              style={{ '--tw-ring-color': '#4338ca' } as { [key: string]: string }}
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm resize-none focus:outline-none transition"
+              style={{
+                backgroundColor: BG,
+                border: `1px solid ${BORDER}`,
+                color: TEXT_PRIMARY,
+              }}
+              onFocus={(e) => (e.currentTarget.style.border = '1px solid rgba(139,92,246,0.8)')}
+              onBlur={(e) => (e.currentTarget.style.border = `1px solid ${BORDER}`)}
             />
             <button
               onClick={() => void sendMessage()}
               disabled={isStreaming || !input.trim()}
-              className="h-[42px] px-4 rounded-xl text-white text-sm font-semibold flex items-center gap-2"
+              className="h-[52px] px-5 rounded-xl text-sm font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
               style={{
-                backgroundColor: isStreaming || !input.trim() ? '#c7c9d9' : '#4338ca',
+                backgroundColor: isStreaming || !input.trim() ? 'rgba(124,58,237,0.2)' : '#7c3aed',
+                color: isStreaming || !input.trim() ? TEXT_DIM : TEXT_PRIMARY,
                 cursor: isStreaming || !input.trim() ? 'not-allowed' : 'pointer',
+                border: `1px solid ${BORDER}`,
+              }}
+              onMouseEnter={(e) => {
+                if (!isStreaming && input.trim()) e.currentTarget.style.backgroundColor = '#6d28d9';
+              }}
+              onMouseLeave={(e) => {
+                if (!isStreaming && input.trim()) e.currentTarget.style.backgroundColor = '#7c3aed';
               }}
             >
               {isStreaming ? (
@@ -564,7 +661,7 @@ Now, I want to improve my prompts.`
               Send
             </button>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

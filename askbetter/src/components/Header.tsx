@@ -12,39 +12,90 @@ export function Header() {
   };
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-5 py-3 bg-white/80 backdrop-blur-sm border-b border-gray-100 shadow-sm">
+    <header
+      className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-8 py-4"
+      style={{
+        backgroundColor: 'rgba(15, 10, 30, 0.85)',
+        backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(139, 92, 246, 0.15)',
+      }}
+    >
       {/* Logo */}
-      <Link to="/" className="text-base font-bold" style={{ color: '#4338ca' }}>
-        AskBetter
+      <Link
+        to="/"
+        className="text-sm font-black uppercase tracking-widest"
+        style={{ color: '#f5f3ff' }}
+      >
+        Ask<span style={{ color: '#7c3aed' }}>Better</span>
       </Link>
 
       {/* Auth controls */}
       <div className="flex items-center gap-3">
         {loading ? null : user ? (
           <>
-            <span className="hidden sm:flex items-center gap-1.5 text-xs text-gray-500">
+            <span
+              className="hidden sm:flex items-center gap-1.5 text-xs font-medium"
+              style={{ color: '#a78bfa' }}
+            >
               <User className="w-3.5 h-3.5" />
               {user.email}
             </span>
             <button
               onClick={() => void signOut()}
-              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-red-500 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-red-200 hover:bg-red-50 transition-colors"
+              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-lg transition-all"
+              style={{
+                backgroundColor: 'transparent',
+                border: '1px solid rgba(139, 92, 246, 0.35)',
+                color: '#a78bfa',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#7c3aed';
+                e.currentTarget.style.color = '#f5f3ff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.35)';
+                e.currentTarget.style.color = '#a78bfa';
+              }}
             >
               <LogOut className="w-3.5 h-3.5" />
               Sign out
             </button>
           </>
         ) : (
-          <button
-            onClick={goToLogin}
-            className="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg transition-colors"
-            style={{ backgroundColor: '#4338ca' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#3730a3')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#4338ca')}
-          >
-            <LogIn className="w-3.5 h-3.5" />
-            Log in
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Log in — ghost style */}
+            <button
+              onClick={goToLogin}
+              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-lg transition-all"
+              style={{
+                backgroundColor: 'transparent',
+                border: '1px solid rgba(139, 92, 246, 0.35)',
+                color: '#a78bfa',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#7c3aed';
+                e.currentTarget.style.color = '#f5f3ff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.35)';
+                e.currentTarget.style.color = '#a78bfa';
+              }}
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              Log in
+            </button>
+
+            {/* Sign up — filled style */}
+            <button
+              onClick={() => navigate('/auth?mode=signup')}
+              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-lg transition-all"
+              style={{ backgroundColor: '#7c3aed', color: '#f5f3ff' }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#6d28d9')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#7c3aed')}
+            >
+              Sign up
+            </button>
+          </div>
         )}
       </div>
     </header>

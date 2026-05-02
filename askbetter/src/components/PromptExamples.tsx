@@ -13,10 +13,17 @@ const intentLabels: Record<string, string> = {
 };
 
 const intentColors: Record<string, string> = {
-  delegation: 'bg-red-900/40 text-red-300 border-red-800/50',
-  curiosity: 'bg-blue-900/40 text-blue-300 border-blue-800/50',
-  collaborative: 'bg-emerald-900/40 text-emerald-300 border-emerald-800/50',
-  verification: 'bg-amber-900/40 text-amber-300 border-amber-800/50',
+  delegation: 'rgba(124,58,237,0.2)',
+  curiosity: 'rgba(167,139,250,0.15)',
+  collaborative: 'rgba(196,181,253,0.12)',
+  verification: 'rgba(109,40,217,0.2)',
+};
+
+const intentTextColors: Record<string, string> = {
+  delegation: '#c4b5fd',
+  curiosity: '#a78bfa',
+  collaborative: '#ddd6fe',
+  verification: '#a78bfa',
 };
 
 const flagLabels: Record<string, string> = {
@@ -29,22 +36,39 @@ const flagLabels: Record<string, string> = {
 
 function PromptBubble({ prompt }: { prompt: AnalyzedPrompt }) {
   const truncated = prompt.text.length > 200 ? prompt.text.slice(0, 200) + '…' : prompt.text;
-
   const notableFlags = prompt.flags.filter((f) => flagLabels[f]);
 
   return (
-    <div className="bg-slate-700/50 rounded-xl p-3 border border-slate-600/50">
-      <p className="text-sm text-slate-200 leading-relaxed">{truncated}</p>
+    <div
+      className="rounded-xl p-3"
+      style={{
+        backgroundColor: 'rgba(124,58,237,0.08)',
+        border: '1px solid rgba(139,92,246,0.2)',
+      }}
+    >
+      <p className="text-sm leading-relaxed" style={{ color: '#f5f3ff' }}>
+        {truncated}
+      </p>
       <div className="mt-2 flex flex-wrap gap-1.5">
         <span
-          className={`inline-block text-xs px-2 py-0.5 rounded-full border font-medium ${intentColors[prompt.primaryIntent]}`}
+          className="inline-block text-xs px-2 py-0.5 rounded-full font-medium"
+          style={{
+            backgroundColor: intentColors[prompt.primaryIntent] ?? 'rgba(124,58,237,0.2)',
+            color: intentTextColors[prompt.primaryIntent] ?? '#c4b5fd',
+            border: '1px solid rgba(139,92,246,0.3)',
+          }}
         >
           {intentLabels[prompt.primaryIntent]}
         </span>
         {notableFlags.map((f) => (
           <span
             key={f}
-            className="inline-block text-xs px-2 py-0.5 rounded-full border bg-indigo-900/40 text-indigo-300 border-indigo-800/50 font-medium"
+            className="inline-block text-xs px-2 py-0.5 rounded-full font-medium"
+            style={{
+              backgroundColor: 'rgba(167,139,250,0.1)',
+              color: '#a78bfa',
+              border: '1px solid rgba(139,92,246,0.25)',
+            }}
           >
             {flagLabels[f]}
           </span>
@@ -61,14 +85,24 @@ export function PromptExamples({ passiveExamples, activeExamples }: PromptExampl
   if (!hasPassive && !hasActive) return null;
 
   return (
-    <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
-      <h2 className="text-lg font-semibold text-white mb-4">Prompt Examples</h2>
+    <div
+      className="rounded-2xl p-6"
+      style={{ backgroundColor: '#1a1030', border: '1px solid rgba(139,92,246,0.25)' }}
+    >
+      <h2 className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: '#a78bfa' }}>
+        Prompt Examples
+      </h2>
       <div className="grid md:grid-cols-2 gap-6">
         {hasPassive && (
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-red-400" />
-              <span className="text-sm font-medium text-slate-300">Passive Prompts</span>
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#fb923c' }} />
+              <span
+                className="text-xs font-semibold uppercase tracking-wider"
+                style={{ color: '#6b5fa0' }}
+              >
+                Passive Prompts
+              </span>
             </div>
             <div className="flex flex-col gap-2">
               {passiveExamples.map((p, i) => (
@@ -80,8 +114,13 @@ export function PromptExamples({ passiveExamples, activeExamples }: PromptExampl
         {hasActive && (
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span className="text-sm font-medium text-slate-300">Active Prompts</span>
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#a78bfa' }} />
+              <span
+                className="text-xs font-semibold uppercase tracking-wider"
+                style={{ color: '#6b5fa0' }}
+              >
+                Active Prompts
+              </span>
             </div>
             <div className="flex flex-col gap-2">
               {activeExamples.map((p, i) => (
