@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import { AuthPage } from './pages/AuthPage';
 import { InputPage } from './pages/InputPage';
 import { ResultsPage } from './pages/ResultsPage';
+import { ChatPage } from './pages/ChatPage';
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
         <Routes>
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/" element={<InputPage />} />
+          <Route path="/chat" element={<ChatPage />} />
           <Route path="/results" element={<ResultsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
