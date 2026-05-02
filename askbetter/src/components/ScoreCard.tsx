@@ -1,4 +1,4 @@
-import type { ConversationScores } from "../lib/types";
+import type { ConversationScores } from "../analysis/types";
 
 interface ScoreCardProps {
   scores: ConversationScores;
@@ -19,7 +19,6 @@ function ScoreItem({ label, score, description, color }: ScoreItemProps) {
     <div className="flex flex-col items-center gap-2 p-4">
       <div className="relative w-24 h-24">
         <svg className="w-24 h-24 -rotate-90" viewBox="0 0 80 80">
-          {/* Background circle */}
           <circle
             cx="40"
             cy="40"
@@ -28,7 +27,6 @@ function ScoreItem({ label, score, description, color }: ScoreItemProps) {
             stroke="#1e293b"
             strokeWidth="7"
           />
-          {/* Progress circle */}
           <circle
             cx="40"
             cy="40"
@@ -67,7 +65,7 @@ export function ScoreCard({ scores }: ScoreCardProps) {
     {
       label: "Curiosity",
       score: scores.curiosity,
-      description: "Exploratory follow-up questions",
+      description: "Exploratory questions",
       color: "#60a5fa",
     },
     {
@@ -77,6 +75,18 @@ export function ScoreCard({ scores }: ScoreCardProps) {
       color: "#34d399",
     },
     {
+      label: "Specificity",
+      score: scores.specificity,
+      description: "Context & constraints",
+      color: "#f472b6",
+    },
+    {
+      label: "Context",
+      score: scores.context,
+      description: "Background provided",
+      color: "#fb923c",
+    },
+    {
       label: "Engagement",
       score: scores.engagement,
       description: "Iteration & depth",
@@ -84,25 +94,19 @@ export function ScoreCard({ scores }: ScoreCardProps) {
     },
   ];
 
-  const overall = Math.round(
-    (scores.autonomy +
-      scores.curiosity +
-      scores.criticalThinking +
-      scores.engagement) /
-      4,
-  );
-
   return (
     <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold text-white">Your Scores</h2>
         <div className="flex items-center gap-2 bg-slate-700 rounded-full px-4 py-1.5">
           <span className="text-slate-400 text-sm">Overall</span>
-          <span className="text-white font-bold text-lg">{overall}</span>
+          <span className="text-white font-bold text-lg">
+            {scores.overallQuality}
+          </span>
           <span className="text-slate-400 text-sm">/100</span>
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
         {items.map((item) => (
           <ScoreItem key={item.label} {...item} />
         ))}
