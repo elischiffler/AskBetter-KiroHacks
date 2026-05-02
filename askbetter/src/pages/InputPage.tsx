@@ -1,14 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Sparkles,
-  ChevronRight,
-  FileText,
-  Loader2,
-  Link,
-  AlertTriangle,
-} from "lucide-react";
+import { Link2, FileText, Loader2 } from "lucide-react";
 import { analyzeConversation } from "../analysis/analyzer";
+import { parseConversation } from "../analysis/parser";
 import {
   isChatGPTShareUrl,
   getPromptsFromInput,
@@ -17,268 +11,238 @@ import {
 import {
   SAMPLE_CONVERSATION,
   SAMPLE_PASSIVE_CONVERSATION,
-  SAMPLE_DELEGATION_WITH_LEARNING,
-  SAMPLE_VERIFICATION_CONVERSATION,
-  SAMPLE_COPY_PASTE_CONVERSATION,
 } from "../lib/sampleData";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type InputState = "idle" | "loading" | "error";
-
-interface SampleButton {
-  label: string;
-  data: string;
-}
-
-const SAMPLES: SampleButton[] = [
-  { label: "Active learning", data: SAMPLE_CONVERSATION },
-  { label: "Passive delegation", data: SAMPLE_PASSIVE_CONVERSATION },
-  { label: "Delegation + learning", data: SAMPLE_DELEGATION_WITH_LEARNING },
-  { label: "Verification", data: SAMPLE_VERIFICATION_CONVERSATION },
-  { label: "Copy-paste", data: SAMPLE_COPY_PASTE_CONVERSATION },
-];
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function InputPage() {
+  const [url, setUrl] = useState("");
   const [text, setText] = useState("");
-  const [inputState, setInputState] = useState<InputState>("idle");
   const [error, setError] = useState("");
+  const [mode, setMode] = useState<"link" | "paste">("link");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-
-  const isUrl = isChatGPTShareUrl(text.trim());
-  const isLoading = inputState === "loading";
 
   const handleAnalyze = async () => {
     setError("");
-    const trimmed = text.trim();
+    const input = mode === "link" ? url.trim() : text.trim();
 
-    if (!trimmed) {
+    if (!input) {
       setError(
-        "Please paste a conversation or a ChatGPT share link before analyzing.",
+        mode === "link"
+          ? "Please enter a ChatGPT share link or switch to paste mode."
+          : "Please paste a conversation before analyzing.",
+      );
+      return;
+    }
+
+    // In paste mode, skip fetch and go straight to parser
+    if (mode === "paste") {
+      const prompts = parseConversation(input);
+      if (prompts.length === 0) {
+        setError(
+          "No user messages detected. Try pasting the conversation text directly.",
+        );
+        return;
+      }
+      const result = analyzeConversation(prompts);
+      navigate("/results", { state: { result } });
+      return;
+    }
+
+    // Link mode — validate it's a real ChatGPT share URL before fetching
+    if (!isChatGPTShareUrl(input)) {
+      setError(
+        "That doesn't look like a ChatGPT share link. It should start with https://chatgpt.com/share/",
       );
       return;
     }
 
     try {
-      setInputState("loading");
-
-      const prompts = await getPromptsFromInput(trimmed);
-
+      setIsLoading(true);
+      const prompts = await getPromptsFromInput(input);
       if (prompts.length === 0) {
-        setInputState("error");
-        setError("No user messages detected. Try the format hint below.");
+        setError("No user messages detected in that conversation.");
         return;
       }
-
       const result = analyzeConversation(prompts);
-      setInputState("idle");
       navigate("/results", { state: { result } });
     } catch (err: unknown) {
-      setInputState("error");
       const code = err instanceof Error ? err.message : "UNKNOWN";
       setError(getLinkErrorMessage(code));
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-      void handleAnalyze();
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const loadSample = (sample: string) => {
     setText(sample);
+    setUrl("");
+    setMode("paste");
     setError("");
-    setInputState("idle");
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
-    if (inputState === "error") {
-      setInputState("idle");
-      setError("");
-    }
-  };
+  const isDisabled =
+    isLoading || (mode === "link" ? !url.trim() : !text.trim());
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      {/* Header */}
-      <header className="border-b border-slate-800 px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-indigo-400" />
-          <span className="text-white font-bold text-lg tracking-tight">
-            AskBetter
-          </span>
-          <span className="text-slate-500 text-sm ml-1">
-            Better questions, better answers
-          </span>
-        </div>
-      </header>
-
-      {/* Hero */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        <div className="w-full max-w-2xl">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-white mb-3 tracking-tight">
-              Analyze your AI conversations
-            </h1>
-            <p className="text-slate-400 text-lg">
-              Paste a ChatGPT conversation transcript or a shared ChatGPT link.
-            </p>
+    <div
+      className="min-h-screen flex items-center justify-center px-4 py-12"
+      style={{
+        background:
+          "linear-gradient(135deg, #e8eaf6 0%, #ede9f7 50%, #e3e8f5 100%)",
+      }}
+    >
+      <div className="w-full max-w-xl">
+        {/* Card */}
+        <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/60 p-10">
+          {/* Icon */}
+          <div className="flex justify-center mb-6">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: "#e8eaf6" }}
+            >
+              <Link2 className="w-7 h-7" style={{ color: "#4338ca" }} />
+            </div>
           </div>
 
-          {/* Input area */}
-          <div className="relative">
-            {/* URL mode indicator */}
-            {isUrl && (
-              <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-indigo-600/20 border border-indigo-500/30 rounded-lg px-2 py-1 z-10">
-                <Link className="w-3 h-3 text-indigo-400" />
-                <span className="text-indigo-300 text-xs font-medium">
-                  Share link detected
-                </span>
-              </div>
-            )}
+          {/* Title */}
+          <h1
+            className="text-3xl font-bold text-center mb-2"
+            style={{ color: "#3730a3" }}
+          >
+            ChatGPT Chat Analyzer
+          </h1>
+          <p className="text-center text-gray-500 text-sm mb-8">
+            Paste your ChatGPT share link below to get detailed insights and
+            feedback
+          </p>
 
-            <textarea
-              className={`w-full h-64 bg-slate-800 border rounded-2xl p-4 text-slate-200 text-sm placeholder-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition ${
-                isUrl ? "pt-10" : ""
-              } ${
-                inputState === "error"
-                  ? "border-red-700/60"
-                  : "border-slate-700"
+          {/* Mode toggle */}
+          <div className="flex gap-2 mb-5">
+            <button
+              onClick={() => {
+                setMode("link");
+                setError("");
+              }}
+              className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${
+                mode === "link"
+                  ? "text-white shadow-sm"
+                  : "text-gray-500 bg-gray-100 hover:bg-gray-200"
               }`}
-              placeholder={
-                "Paste a ChatGPT conversation transcript or shared link…\n\nTranscript format:\nYou: Write me a Python script...\nChatGPT: Sure! Here's...\nYou: Why does this work?\n\nOr paste a link like:\nhttps://chatgpt.com/share/..."
-              }
-              value={text}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              disabled={isLoading}
-            />
-
-            {text && !isLoading && (
-              <button
-                onClick={() => {
-                  setText("");
-                  setError("");
-                  setInputState("idle");
-                }}
-                className="absolute top-3 right-3 text-slate-500 hover:text-slate-300 text-xs transition"
-              >
-                Clear
-              </button>
-            )}
+              style={mode === "link" ? { backgroundColor: "#4338ca" } : {}}
+            >
+              Share Link
+            </button>
+            <button
+              onClick={() => {
+                setMode("paste");
+                setError("");
+              }}
+              className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${
+                mode === "paste"
+                  ? "text-white shadow-sm"
+                  : "text-gray-500 bg-gray-100 hover:bg-gray-200"
+              }`}
+              style={mode === "paste" ? { backgroundColor: "#4338ca" } : {}}
+            >
+              Paste Text
+            </button>
           </div>
 
-          {/* Error message */}
-          {inputState === "error" && error && (
-            <div className="mt-3 flex items-start gap-2.5 bg-red-950/40 border border-red-800/50 rounded-xl p-3">
-              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <p className="text-red-300 text-sm leading-relaxed">{error}</p>
+          {/* Input */}
+          {mode === "link" ? (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                ChatGPT Share Link
+              </label>
+              <input
+                type="url"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition"
+                style={{ "--tw-ring-color": "#4338ca" } as React.CSSProperties}
+                placeholder="https://chatgpt.com/share/..."
+                value={url}
+                disabled={isLoading}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setUrl(e.target.value);
+                  setError("");
+                }}
+                onKeyDown={(e: React.KeyboardEvent) =>
+                  e.key === "Enter" && void handleAnalyze()
+                }
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Conversation Text
+              </label>
+              <textarea
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:border-transparent transition"
+                style={{ "--tw-ring-color": "#4338ca" } as React.CSSProperties}
+                placeholder={`Paste your ChatGPT conversation here...\n\nYou: Write me a Python script...\nChatGPT: Sure! Here's...\nYou: Why does this work?`}
+                rows={6}
+                value={text}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+                  setText(e.target.value);
+                  setError("");
+                }}
+              />
             </div>
           )}
 
-          {/* Inline validation error (not link-related) */}
-          {inputState === "idle" && error && (
-            <p className="text-red-400 text-sm mt-2">{error}</p>
-          )}
+          {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
 
           {/* Analyze button */}
-          <div className="mt-4 flex items-center gap-3">
+          <button
+            onClick={() => void handleAnalyze()}
+            disabled={isDisabled}
+            className="w-full mt-4 py-3.5 rounded-xl text-white font-semibold text-sm transition active:scale-[0.98] flex items-center justify-center gap-2"
+            style={{
+              backgroundColor: isDisabled ? "#c7c9d9" : "#4338ca",
+              cursor: isDisabled ? "not-allowed" : "pointer",
+            }}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Reading conversation…
+              </>
+            ) : (
+              "Analyze Chat"
+            )}
+          </button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-gray-100" />
+            <span className="text-xs text-gray-400">or try a sample</span>
+            <div className="flex-1 h-px bg-gray-100" />
+          </div>
+
+          {/* Sample buttons */}
+          <div className="flex gap-2">
             <button
-              onClick={() => void handleAnalyze()}
-              disabled={isLoading}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-6 py-3 rounded-xl transition active:scale-95"
+              onClick={() => loadSample(SAMPLE_CONVERSATION)}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 py-2 px-3 rounded-lg border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 transition"
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Reading shared conversation…
-                </>
-              ) : (
-                <>
-                  Analyze conversation
-                  <ChevronRight className="w-4 h-4" />
-                </>
-              )}
+              <FileText className="w-3.5 h-3.5" />
+              Active sample
             </button>
-            <span className="text-slate-600 text-xs hidden sm:block">
-              or ⌘↵
-            </span>
+            <button
+              onClick={() => loadSample(SAMPLE_PASSIVE_CONVERSATION)}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 py-2 px-3 rounded-lg border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 transition"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Passive sample
+            </button>
           </div>
 
-          {/* Sample conversations */}
-          <div className="mt-6">
-            <p className="text-slate-500 text-xs uppercase tracking-wider mb-2 font-medium">
-              Try a sample
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {SAMPLES.map((s) => (
-                <button
-                  key={s.label}
-                  onClick={() => loadSample(s.data)}
-                  disabled={isLoading}
-                  className="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 disabled:opacity-40 text-sm px-3 py-1.5 rounded-lg hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 transition"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Format hint */}
-          <div className="mt-8 bg-slate-800/50 border border-slate-700/50 rounded-xl p-4">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-3">
-              Supported inputs
-            </p>
-            <ul className="text-slate-400 text-sm space-y-2">
-              <li className="flex items-start gap-2">
-                <Link className="w-3.5 h-3.5 text-indigo-400 mt-0.5 shrink-0" />
-                <span>
-                  <span className="text-slate-300">Share link: </span>
-                  paste a{" "}
-                  <code className="text-indigo-400 bg-slate-700 px-1 rounded text-xs">
-                    https://chatgpt.com/share/…
-                  </code>{" "}
-                  URL directly
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <FileText className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
-                <span>
-                  <span className="text-slate-300">Labeled transcript: </span>
-                  lines starting with{" "}
-                  <code className="text-indigo-400 bg-slate-700 px-1 rounded text-xs">
-                    You:
-                  </code>{" "}
-                  /{" "}
-                  <code className="text-indigo-400 bg-slate-700 px-1 rounded text-xs">
-                    User:
-                  </code>{" "}
-                  /{" "}
-                  <code className="text-indigo-400 bg-slate-700 px-1 rounded text-xs">
-                    Human:
-                  </code>
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <FileText className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
-                <span>
-                  <span className="text-slate-300">Alternating blocks: </span>
-                  paragraphs separated by blank lines (user first)
-                </span>
-              </li>
-            </ul>
-          </div>
+          {/* Footer note */}
+          <p className="text-center text-xs text-gray-400 mt-6 leading-relaxed">
+            This tool analyzes your ChatGPT conversations to provide insights on
+            conversation quality, tone, and effectiveness
+          </p>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
