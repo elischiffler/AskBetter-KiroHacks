@@ -17,7 +17,7 @@ export function AuthPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (!loading && user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/analyze" replace />;
   }
 
   const handleEmailAuth = async (e: React.FormEvent) => {
