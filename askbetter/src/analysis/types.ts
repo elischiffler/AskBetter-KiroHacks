@@ -1,22 +1,45 @@
-export type PromptCategory =
+export type PromptIntent =
   | "delegation"
   | "curiosity"
   | "collaborative"
   | "verification";
 
+export interface IntentScores {
+  delegation: number;
+  curiosity: number;
+  collaborative: number;
+  verification: number;
+}
+
+export interface QualityScores {
+  autonomy: number;
+  curiosity: number;
+  criticalThinking: number;
+  specificity: number;
+  context: number;
+  iteration: number;
+}
+
 export interface AnalyzedPrompt {
   text: string;
-  category: PromptCategory;
+  primaryIntent: PromptIntent;
+  intentScores: IntentScores;
+  qualityScores: QualityScores;
+  qualityScore: number;
+  wordCount: number;
+  flags: string[];
   isPassive: boolean;
   isActive: boolean;
-  wordCount: number;
 }
 
 export interface ConversationScores {
-  autonomy: number; // 0–100
-  curiosity: number; // 0–100
-  criticalThinking: number; // 0–100
-  engagement: number; // 0–100
+  autonomy: number;
+  curiosity: number;
+  criticalThinking: number;
+  specificity: number;
+  context: number;
+  engagement: number;
+  overallQuality: number;
 }
 
 export type PatternSeverity = "positive" | "warning" | "neutral";

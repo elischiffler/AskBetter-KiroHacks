@@ -1,12 +1,28 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, ChevronRight, FileText } from "lucide-react";
-import { parseConversation } from "../lib/parser";
-import { analyzeConversation } from "../lib/analyzer";
+import { parseConversation } from "../analysis/parser";
+import { analyzeConversation } from "../analysis/analyzer";
 import {
   SAMPLE_CONVERSATION,
   SAMPLE_PASSIVE_CONVERSATION,
+  SAMPLE_DELEGATION_WITH_LEARNING,
+  SAMPLE_VERIFICATION_CONVERSATION,
+  SAMPLE_COPY_PASTE_CONVERSATION,
 } from "../lib/sampleData";
+
+interface SampleButton {
+  label: string;
+  data: string;
+}
+
+const SAMPLES: SampleButton[] = [
+  { label: "Active learning", data: SAMPLE_CONVERSATION },
+  { label: "Passive delegation", data: SAMPLE_PASSIVE_CONVERSATION },
+  { label: "Delegation + learning", data: SAMPLE_DELEGATION_WITH_LEARNING },
+  { label: "Verification", data: SAMPLE_VERIFICATION_CONVERSATION },
+  { label: "Copy-paste", data: SAMPLE_COPY_PASTE_CONVERSATION },
+];
 
 export function InputPage() {
   const [text, setText] = useState("");
@@ -85,8 +101,8 @@ export function InputPage() {
 
           {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
 
-          {/* Actions */}
-          <div className="flex items-center gap-3 mt-4">
+          {/* Analyze button */}
+          <div className="mt-4">
             <button
               onClick={handleAnalyze}
               className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded-xl transition active:scale-95"
@@ -94,21 +110,24 @@ export function InputPage() {
               Analyze conversation
               <ChevronRight className="w-4 h-4" />
             </button>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => loadSample(SAMPLE_CONVERSATION)}
-                className="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-sm px-3 py-2 rounded-lg hover:bg-slate-800 transition"
-              >
-                <FileText className="w-4 h-4" />
-                Active sample
-              </button>
-              <button
-                onClick={() => loadSample(SAMPLE_PASSIVE_CONVERSATION)}
-                className="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-sm px-3 py-2 rounded-lg hover:bg-slate-800 transition"
-              >
-                <FileText className="w-4 h-4" />
-                Passive sample
-              </button>
+          </div>
+
+          {/* Sample conversations */}
+          <div className="mt-5">
+            <p className="text-slate-500 text-xs uppercase tracking-wider mb-2 font-medium">
+              Try a sample
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {SAMPLES.map((s) => (
+                <button
+                  key={s.label}
+                  onClick={() => loadSample(s.data)}
+                  className="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-sm px-3 py-1.5 rounded-lg hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 transition"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  {s.label}
+                </button>
+              ))}
             </div>
           </div>
 

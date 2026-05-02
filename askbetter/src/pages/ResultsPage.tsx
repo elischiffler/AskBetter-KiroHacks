@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles } from "lucide-react";
-import type { AnalysisResult } from "../lib/types";
+import type { AnalysisResult } from "../analysis/types";
 import { ScoreCard } from "../components/ScoreCard";
 import { DistributionChart } from "../components/DistributionChart";
 import { PatternList } from "../components/PatternList";

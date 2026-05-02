@@ -1,5 +1,5 @@
 import { CheckCircle, AlertTriangle, Info } from "lucide-react";
-import type { DetectedPattern } from "../lib/types";
+import type { DetectedPattern } from "../analysis/types";
 
 interface PatternListProps {
   patterns: DetectedPattern[];

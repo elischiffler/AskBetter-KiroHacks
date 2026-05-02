@@ -1,37 +1,55 @@
-import type { AnalyzedPrompt } from "../lib/types";
+import type { AnalyzedPrompt } from "../analysis/types";
 
 interface PromptExamplesProps {
   passiveExamples: AnalyzedPrompt[];
   activeExamples: AnalyzedPrompt[];
 }
 
-const categoryLabels: Record<string, string> = {
+const intentLabels: Record<string, string> = {
   delegation: "Delegation",
   curiosity: "Curiosity",
   collaborative: "Collaborative",
   verification: "Verification",
 };
 
-const categoryColors: Record<string, string> = {
+const intentColors: Record<string, string> = {
   delegation: "bg-red-900/40 text-red-300 border-red-800/50",
   curiosity: "bg-blue-900/40 text-blue-300 border-blue-800/50",
   collaborative: "bg-emerald-900/40 text-emerald-300 border-emerald-800/50",
   verification: "bg-amber-900/40 text-amber-300 border-amber-800/50",
 };
 
+const flagLabels: Record<string, string> = {
+  delegation_with_learning_intent: "Learning intent",
+  shows_prior_attempt: "Shows attempt",
+  asks_for_reasoning: "Asks for reasoning",
+  asks_for_alternatives: "Asks for alternatives",
+  asks_for_risk_or_limitations: "Asks for risks",
+};
+
 function PromptBubble({ prompt }: { prompt: AnalyzedPrompt }) {
   const truncated =
     prompt.text.length > 200 ? prompt.text.slice(0, 200) + "…" : prompt.text;
 
+  const notableFlags = prompt.flags.filter((f) => flagLabels[f]);
+
   return (
     <div className="bg-slate-700/50 rounded-xl p-3 border border-slate-600/50">
       <p className="text-sm text-slate-200 leading-relaxed">{truncated}</p>
-      <div className="mt-2">
+      <div className="mt-2 flex flex-wrap gap-1.5">
         <span
-          className={`inline-block text-xs px-2 py-0.5 rounded-full border font-medium ${categoryColors[prompt.category]}`}
+          className={`inline-block text-xs px-2 py-0.5 rounded-full border font-medium ${intentColors[prompt.primaryIntent]}`}
         >
-          {categoryLabels[prompt.category]}
+          {intentLabels[prompt.primaryIntent]}
         </span>
+        {notableFlags.map((f) => (
+          <span
+            key={f}
+            className="inline-block text-xs px-2 py-0.5 rounded-full border bg-indigo-900/40 text-indigo-300 border-indigo-800/50 font-medium"
+          >
+            {flagLabels[f]}
+          </span>
+        ))}
       </div>
     </div>
   );

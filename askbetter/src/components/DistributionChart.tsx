@@ -6,7 +6,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import type { CategoryDistribution } from "../lib/types";
+import type { CategoryDistribution } from "../analysis/types";
 
 interface DistributionChartProps {
   distribution: CategoryDistribution[];
