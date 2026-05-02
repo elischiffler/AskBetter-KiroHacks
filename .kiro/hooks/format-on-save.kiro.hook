@@ -8,12 +8,13 @@
     "patterns": [
       "askbetter/src/**/*.ts",
       "askbetter/src/**/*.tsx",
-      "askbetter/src/**/*.css"
+      "askbetter/src/**/*.css",
+      "server/**/*.js"
     ]
   },
   "then": {
     "type": "runCommand",
-    "command": "askbetter/node_modules/.bin/prettier --write askbetter/src",
+    "command": "server/node_modules/.bin/prettier --write askbetter/src server/index.js",
     "timeout": 30
   },
   "workspaceFolderName": "AskBetter-KiroHacks",

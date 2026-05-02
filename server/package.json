@@ -6,7 +6,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@sparticuz/chromium": "^148.0.0",
@@ -16,5 +18,8 @@
     "express": "^5.2.1",
     "node-fetch": "^2.7.0",
     "puppeteer-core": "^24.42.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.3"
   }
 }

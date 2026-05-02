@@ -1,0 +1,9 @@
+{
+  "name": "askbetter-kirohacks",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "npm install --prefix askbetter && npm install --prefix server",
+    "format": "npm run format --prefix askbetter && npm run format --prefix server"
+  }
+}
