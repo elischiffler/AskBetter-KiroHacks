@@ -366,7 +366,11 @@ export function ResultsPage() {
                 cursor: isStreaming || !input.trim() ? 'not-allowed' : 'pointer',
               }}
             >
-              {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {isStreaming ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
               Send
             </button>
           </div>
