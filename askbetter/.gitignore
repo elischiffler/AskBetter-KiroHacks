@@ -56,3 +56,6 @@ coverage/
 *.pem
 *.key
 *.cert
+
+# ---- Server secrets ----
+server/.env

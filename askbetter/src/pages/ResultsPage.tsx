@@ -6,6 +6,7 @@ import { DistributionChart } from "../components/DistributionChart";
 import { PatternList } from "../components/PatternList";
 import { PromptExamples } from "../components/PromptExamples";
 import { Suggestions } from "../components/Suggestions";
+import { ChatPanel } from "../components/chat/ChatPanel";
 
 export function ResultsPage() {
   const location = useLocation();
@@ -16,6 +17,17 @@ export function ResultsPage() {
     navigate("/");
     return null;
   }
+
+  const systemPrompt = `You are a helpful AI coach for AskBetter, a tool that analyzes ChatGPT conversation quality. 
+The user just analyzed their conversation and received the following results:
+
+Scores: Autonomy ${result.scores.autonomy}/100, Curiosity ${result.scores.curiosity}/100, Critical Thinking ${result.scores.criticalThinking}/100, Engagement ${result.scores.engagement}/100
+
+Summary: ${result.summary}
+
+Suggestions: ${result.suggestions.join(' | ')}
+
+Help the user understand their results and improve their prompting habits. Be encouraging and specific.`;
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -77,6 +89,12 @@ export function ResultsPage() {
             summary={result.summary}
             suggestions={result.suggestions}
           />
+
+          {/* Chat with your coach */}
+          <div>
+            <h2 className="text-xl font-bold text-white mb-3">Chat with your coach</h2>
+            <ChatPanel systemPrompt={systemPrompt} />
+          </div>
 
           {/* Analyze another */}
           <div className="flex justify-center pb-4">
