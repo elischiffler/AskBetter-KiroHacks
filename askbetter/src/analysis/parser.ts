@@ -66,7 +66,11 @@ export function parseConversation(raw: string): ParseResult {
   // --- Format 3: fallback ---
   const fallback = raw.trim();
   if (!fallback) {
-    return { ok: false, error: 'No conversation content found. Please paste a ChatGPT conversation.', messages: [] };
+    return {
+      ok: false,
+      error: 'No conversation content found. Please paste a ChatGPT conversation.',
+      messages: [],
+    };
   }
   return { ok: true, messages: [fallback] };
 }

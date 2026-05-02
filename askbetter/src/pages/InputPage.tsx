@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Link2, FileText } from 'lucide-react';
-import { parseConversation } from '../analysis/parser';
+import { Link2, FileText, Loader2 } from 'lucide-react';
 import { analyzeConversation } from '../analysis/analyzer';
+import { parseConversation } from '../analysis/parser';
 import {
   SAMPLE_CONVERSATION,
   SAMPLE_PASSIVE_CONVERSATION,
@@ -16,9 +16,10 @@ export function InputPage() {
   const [text, setText] = useState('');
   const [error, setError] = useState('');
   const [mode, setMode] = useState<'link' | 'paste'>('link');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     setError('');
     const input = mode === 'link' ? url.trim() : text.trim();
     if (!input) {
@@ -29,13 +30,21 @@ export function InputPage() {
       );
       return;
     }
-    const parsed = parseConversation(input);
-    if (!parsed.ok) {
-      setError(parsed.error);
+
+    // Paste mode — skip fetch, go straight to parser
+    if (mode === 'paste') {
+      const parsed = parseConversation(input);
+      if (!parsed.ok) {
+        setError(parsed.error);
+        return;
+      }
+      const result = analyzeConversation(parsed.messages);
+      navigate('/results', { state: { result } });
       return;
     }
-    const result = analyzeConversation(parsed.messages);
-    navigate('/results', { state: { result } });
+
+    // Link mode — not yet supported without linkParser
+    setError('Share link analysis is not yet available. Please use Paste Text mode.');
   };
 
   const loadSample = (sample: string) => {
@@ -45,7 +54,7 @@ export function InputPage() {
     setError('');
   };
 
-  const isDisabled = mode === 'link' ? !url.trim() : !text.trim();
+  const isDisabled = isLoading || (mode === 'link' ? !url.trim() : !text.trim());
 
   return (
     <div
@@ -76,7 +85,10 @@ export function InputPage() {
           {/* Mode toggle */}
           <div className="flex gap-2 mb-5">
             <button
-              onClick={() => setMode('link')}
+              onClick={() => {
+                setMode('link');
+                setError('');
+              }}
               className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${
                 mode === 'link'
                   ? 'text-white shadow-sm'
@@ -87,7 +99,10 @@ export function InputPage() {
               Share Link
             </button>
             <button
-              onClick={() => setMode('paste')}
+              onClick={() => {
+                setMode('paste');
+                setError('');
+              }}
               className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${
                 mode === 'paste'
                   ? 'text-white shadow-sm'
@@ -111,11 +126,12 @@ export function InputPage() {
                 style={{ '--tw-ring-color': '#4338ca' } as React.CSSProperties}
                 placeholder="https://chatgpt.com/share/..."
                 value={url}
+                disabled={isLoading}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   setUrl(e.target.value);
                   setError('');
                 }}
-                onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && handleAnalyze()}
+                onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && void handleAnalyze()}
               />
             </div>
           ) : (
@@ -141,15 +157,22 @@ export function InputPage() {
 
           {/* Analyze button */}
           <button
-            onClick={handleAnalyze}
+            onClick={() => void handleAnalyze()}
             disabled={isDisabled}
-            className="w-full mt-4 py-3.5 rounded-xl text-white font-semibold text-sm transition active:scale-[0.98]"
+            className="w-full mt-4 py-3.5 rounded-xl text-white font-semibold text-sm transition active:scale-[0.98] flex items-center justify-center gap-2"
             style={{
               backgroundColor: isDisabled ? '#c7c9d9' : '#4338ca',
               cursor: isDisabled ? 'not-allowed' : 'pointer',
             }}
           >
-            Analyze Chat
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Reading conversation…
+              </>
+            ) : (
+              'Analyze Chat'
+            )}
           </button>
 
           {/* Divider */}
