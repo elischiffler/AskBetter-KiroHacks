@@ -13,7 +13,7 @@
   },
   "then": {
     "type": "runCommand",
-    "command": "askbetter/node_modules/.bin/prettier --write askbetter/src",
+    "command": "cd askbetter && npx prettier --write src",
     "timeout": 30
   },
   "workspaceFolderName": "AskBetter-KiroHacks",

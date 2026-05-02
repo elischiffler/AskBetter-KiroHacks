@@ -1,3 +1,7 @@
+export type ParseResult =
+  | { ok: true; messages: string[] }
+  | { ok: false; error: string; messages: [] };
+
 /**
  * Parses a pasted ChatGPT conversation transcript and extracts user messages.
  *
@@ -6,7 +10,7 @@
  * 2. Alternating blank-line-separated blocks (user first)
  * 3. Fallback: treat the whole input as a single prompt
  */
-export function parseConversation(raw: string): string[] {
+export function parseConversation(raw: string): ParseResult {
   const lines = raw
     .split('\n')
     .map((l) => l.trim())
@@ -45,7 +49,7 @@ export function parseConversation(raw: string): string[] {
     }
     flush();
 
-    if (messages.length > 0) return messages;
+    if (messages.length > 0) return { ok: true, messages };
   }
 
   // --- Format 2: alternating blank-line-separated blocks ---
@@ -56,9 +60,13 @@ export function parseConversation(raw: string): string[] {
 
   if (blocks.length >= 2) {
     const userBlocks = blocks.filter((_, i) => i % 2 === 0);
-    if (userBlocks.length > 0) return userBlocks;
+    if (userBlocks.length > 0) return { ok: true, messages: userBlocks };
   }
 
   // --- Format 3: fallback ---
-  return [raw.trim()];
+  const fallback = raw.trim();
+  if (!fallback) {
+    return { ok: false, error: 'No conversation content found. Please paste a ChatGPT conversation.', messages: [] };
+  }
+  return { ok: true, messages: [fallback] };
 }
