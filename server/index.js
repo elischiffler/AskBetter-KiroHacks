@@ -240,18 +240,23 @@ app.get('/api/fetch-share', async (req, res) => {
 // Streams assistant response from Groq as SSE events
 // ---------------------------------------------------------------------------
 app.post('/api/chat/stream', async (req, res) => {
+  console.log('[chat/stream] Received request with', req.body?.messages?.length, 'messages');
   const messages = req.body?.messages;
   const validation = validateChatMessages(messages);
 
   if (!validation.ok) {
+    console.log('[chat/stream] Validation failed:', validation.error);
     return res.status(400).json({ error: validation.error });
   }
 
   if (!GROQ_API_KEY) {
+    console.log('[chat/stream] GROQ_API_KEY not configured');
     return res.status(503).json({
       error: 'GROQ_API_KEY is not configured on the server.',
     });
   }
+
+  console.log('[chat/stream] Starting stream to Groq...');
 
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -259,7 +264,11 @@ app.post('/api/chat/stream', async (req, res) => {
   res.flushHeaders?.();
 
   const abortController = new AbortController();
-  req.on('close', () => abortController.abort());
+  res.on('close', () => {
+    if (!res.writableEnded) {
+      abortController.abort();
+    }
+  });
 
   try {
     const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -277,6 +286,7 @@ app.post('/api/chat/stream', async (req, res) => {
     });
 
     if (!groqResponse.ok) {
+      console.log('[chat/stream] Groq response not OK:', groqResponse.status);
       let detail = `Groq request failed with status ${groqResponse.status}.`;
       try {
         const upstream = await groqResponse.json();
@@ -296,23 +306,27 @@ app.post('/api/chat/stream', async (req, res) => {
 
     const reader = groqResponse.body?.getReader();
     if (!reader) {
-      sendSseEvent(res, 'error', { code: 'UPSTREAM_ERROR', message: 'No response stream from Groq.' });
+      sendSseEvent(res, 'error', {
+        code: 'UPSTREAM_ERROR',
+        message: 'No response stream from Groq.',
+      });
       return res.end();
     }
 
     const decoder = new TextDecoder();
     let buffer = '';
+    let tokenCount = 0;
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
-      const events = buffer.split('\n\n');
+      const events = buffer.split(/\r?\n\r?\n/);
       buffer = events.pop() || '';
 
       for (const eventBlock of events) {
-        const lines = eventBlock.split('\n');
+        const lines = eventBlock.split(/\r?\n/);
         for (const line of lines) {
           if (!line.startsWith('data:')) continue;
           const data = line.slice(5).trim();
@@ -325,6 +339,7 @@ app.post('/api/chat/stream', async (req, res) => {
             const parsed = JSON.parse(data);
             const text = parsed?.choices?.[0]?.delta?.content;
             if (typeof text === 'string' && text.length > 0) {
+              tokenCount++;
               sendSseEvent(res, 'token', { text });
             }
           } catch {
@@ -334,6 +349,7 @@ app.post('/api/chat/stream', async (req, res) => {
       }
     }
 
+    console.log('[chat/stream] Stream complete. Sent', tokenCount, 'tokens');
     sendSseEvent(res, 'end', { done: true });
     return res.end();
   } catch (err) {

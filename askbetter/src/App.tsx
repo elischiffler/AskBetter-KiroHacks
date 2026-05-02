@@ -8,8 +8,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<InputPage />} />
-        <Route path="/chat" element={<ChatPage />} />
         <Route path="/results" element={<ResultsPage />} />
+        <Route path="/chat" element={<ChatPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

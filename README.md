@@ -48,7 +48,7 @@ npm run dev --prefix askbetter
 
 - `/` analyzer input workflow (unchanged)
 - `/results` analyzer results workflow (unchanged)
-- `/chat` live multi-turn chat with server-side Groq streaming
+- Live chat is embedded in `/results` (server-side Groq streaming)
 
 ## Chat API Contract
 

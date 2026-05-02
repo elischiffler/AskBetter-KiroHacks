@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Send } from 'lucide-react';
+import { ArrowLeft, Loader2, Send, Trash2 } from 'lucide-react';
 import { streamChatReply, type ChatMessage } from '../lib/chatClient';
 
 export function ChatPage() {
@@ -9,6 +9,12 @@ export function ChatPage() {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const sendMessage = async () => {
     const content = input.trim();
@@ -60,7 +66,18 @@ export function ChatPage() {
     }
   };
 
+  const clearConversation = () => {
+    if (messages.length === 0) return;
+    
+    const confirmed = window.confirm('Clear this conversation? This cannot be undone.');
+    if (confirmed) {
+      setMessages([]);
+      setError('');
+    }
+  };
+
   const isDisabled = isStreaming || !input.trim();
+  const canClear = messages.length > 0 && !isStreaming;
 
   return (
     <div
@@ -80,6 +97,16 @@ export function ChatPage() {
           <h1 className="text-xl font-bold" style={{ color: '#1e1b4b' }}>
             Chat
           </h1>
+          <button
+            onClick={clearConversation}
+            disabled={!canClear}
+            className="flex items-center gap-2 text-sm font-semibold hover:opacity-70 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ color: '#4338ca' }}
+            title="Clear conversation"
+          >
+            <Trash2 className="w-4 h-4" />
+            Clear
+          </button>
         </div>
 
         <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/60 p-5 md:p-6">
@@ -105,6 +132,7 @@ export function ChatPage() {
                     </div>
                   );
                 })}
+                <div ref={messagesEndRef} />
               </div>
             )}
           </div>
@@ -136,7 +164,11 @@ export function ChatPage() {
                 cursor: isDisabled ? 'not-allowed' : 'pointer',
               }}
             >
-              {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {isStreaming ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
               Send
             </button>
           </div>
