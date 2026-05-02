@@ -1,4 +1,4 @@
-import { Lightbulb } from "lucide-react";
+import { Lightbulb } from 'lucide-react';
 
 interface SuggestionsProps {
   summary: string;

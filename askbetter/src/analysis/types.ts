@@ -1,8 +1,4 @@
-export type PromptIntent =
-  | "delegation"
-  | "curiosity"
-  | "collaborative"
-  | "verification";
+export type PromptIntent = 'delegation' | 'curiosity' | 'collaborative' | 'verification';
 
 export interface IntentScores {
   delegation: number;
@@ -42,7 +38,7 @@ export interface ConversationScores {
   overallQuality: number;
 }
 
-export type PatternSeverity = "positive" | "warning" | "neutral";
+export type PatternSeverity = 'positive' | 'warning' | 'neutral';
 
 export interface DetectedPattern {
   id: string;

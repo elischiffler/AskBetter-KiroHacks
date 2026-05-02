@@ -8,7 +8,7 @@
  */
 export function parseConversation(raw: string): string[] {
   const lines = raw
-    .split("\n")
+    .split('\n')
     .map((l) => l.trim())
     .filter(Boolean);
 
@@ -16,18 +16,16 @@ export function parseConversation(raw: string): string[] {
   const assistantPattern = /^(chatgpt|assistant|gpt|ai)\s*:/i;
 
   // --- Format 1: labeled roles ---
-  const hasLabels = lines.some(
-    (l) => userPattern.test(l) || assistantPattern.test(l),
-  );
+  const hasLabels = lines.some((l) => userPattern.test(l) || assistantPattern.test(l));
 
   if (hasLabels) {
     const messages: string[] = [];
-    let currentRole: "user" | "assistant" | null = null;
+    let currentRole: 'user' | 'assistant' | null = null;
     let buffer: string[] = [];
 
     const flush = () => {
-      if (currentRole === "user" && buffer.length > 0) {
-        messages.push(buffer.join(" ").trim());
+      if (currentRole === 'user' && buffer.length > 0) {
+        messages.push(buffer.join(' ').trim());
       }
       buffer = [];
     };
@@ -35,16 +33,13 @@ export function parseConversation(raw: string): string[] {
     for (const line of lines) {
       if (userPattern.test(line)) {
         flush();
-        currentRole = "user";
-        const content = line
-          .replace(userPattern, "")
-          .replace(/^:\s*/, "")
-          .trim();
+        currentRole = 'user';
+        const content = line.replace(userPattern, '').replace(/^:\s*/, '').trim();
         if (content) buffer.push(content);
       } else if (assistantPattern.test(line)) {
         flush();
-        currentRole = "assistant";
-      } else if (currentRole === "user") {
+        currentRole = 'assistant';
+      } else if (currentRole === 'user') {
         buffer.push(line);
       }
     }

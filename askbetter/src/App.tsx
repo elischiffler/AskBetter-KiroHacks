@@ -1,6 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { InputPage } from "./pages/InputPage";
-import { ResultsPage } from "./pages/ResultsPage";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { InputPage } from './pages/InputPage';
+import { ResultsPage } from './pages/ResultsPage';
 
 export default function App() {
   return (
