@@ -36,12 +36,12 @@ export function InputPage() {
       setError("Please paste a conversation before analyzing.");
       return;
     }
-    const prompts = parseConversation(trimmed);
-    if (prompts.length === 0) {
-      setError("No user messages detected. Try the format hint below.");
+    const parsed = parseConversation(trimmed);
+    if (!parsed.ok) {
+      setError(parsed.error);
       return;
     }
-    const result = analyzeConversation(prompts);
+    const result = analyzeConversation(parsed.messages);
     navigate("/results", { state: { result } });
   };
 
