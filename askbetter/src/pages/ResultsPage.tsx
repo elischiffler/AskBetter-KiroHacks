@@ -168,6 +168,51 @@ export function ResultsPage() {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [chatError, setChatError] = useState('');
+  const [showActionButtons, setShowActionButtons] = useState(true);
+
+  // Generate initial AI message on mount
+  useState(() => {
+    const generateInitialMessage = () => {
+      // Build summary based on analysis
+      const overallScore = result.scores.overallQuality;
+      
+      const primaryCategory = result.distribution.reduce((max, d) => 
+        d.value > max.value ? d : max
+      );
+
+      // Build bullet points from top issues
+      const issues: string[] = [];
+      if (result.scores.autonomy < 50) {
+        issues.push('Heavy reliance on AI without showing your own thinking');
+      }
+      if (result.scores.curiosity < 50) {
+        issues.push('Missing exploratory questions and "why/how" inquiries');
+      }
+      if (result.scores.criticalThinking < 50) {
+        issues.push('Not asking for reasoning, alternatives, or edge cases');
+      }
+      if (result.scores.specificity < 50) {
+        issues.push('Vague requests without clear goals or constraints');
+      }
+      if (result.scores.context < 50) {
+        issues.push('Insufficient background information provided');
+      }
+
+      // Take top 3 issues
+      const topIssues = issues.slice(0, 3);
+
+      const initialMessage = `📊 **Analysis Summary:** Your prompts show ${primaryCategory.name.toLowerCase()} patterns (${Math.round((primaryCategory.value / categoryTotal) * 100)}%) with an overall quality score of ${overallScore}/100.
+
+**Key Issues:**
+${topIssues.map(issue => `• ${issue}`).join('\n')}
+
+I can help you rewrite these prompts to be more effective and get better AI responses. Would you like me to guide you?`;
+
+      setMessages([{ role: 'assistant' as const, content: initialMessage }]);
+    };
+
+    generateInitialMessage();
+  });
 
   const sendMessage = async () => {
     const content = input.trim();
@@ -175,6 +220,7 @@ export function ResultsPage() {
 
     setChatError('');
     setInput('');
+    setShowActionButtons(false); // Hide action buttons once user starts chatting
 
     const nextMessages: ChatMessage[] = [...messages, { role: 'user', content }];
     setMessages([...nextMessages, { role: 'assistant', content: '' }]);
@@ -217,6 +263,57 @@ export function ResultsPage() {
     } finally {
       setIsStreaming(false);
     }
+  };
+
+  const handleDraftBetter = async () => {
+    setShowActionButtons(false);
+    
+    // Find worst prompts
+    const sortedPrompts = [...result.prompts].sort((a, b) => a.qualityScore - b.qualityScore);
+    const worstPrompts = sortedPrompts.slice(0, 3);
+    
+    const draftMessage = `Great! Let's improve your prompts together. I'll guide you through rewriting your weakest prompts to be more effective.
+
+**Your 3 weakest prompts:**
+${worstPrompts.map((p, i) => `${i + 1}. "${p.text.substring(0, 80)}${p.text.length > 80 ? '...' : ''}" (Score: ${p.qualityScore}/100)`).join('\n')}
+
+Let's start with the first one. What were you trying to accomplish with this prompt? What context or background information should the AI know?`;
+
+    const userMessage: ChatMessage = { role: 'user' as const, content: 'Draft Better' };
+    const nextMessages = [...messages, userMessage, { role: 'assistant' as const, content: '' }];
+    setMessages(nextMessages);
+    setIsStreaming(true);
+
+    let assistantText = '';
+    try {
+      await streamChatReply([...messages, userMessage], {
+        onToken: (token) => {
+          assistantText += token;
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (!last || last.role !== 'assistant') return prev;
+            updated[updated.length - 1] = { ...last, content: assistantText || draftMessage };
+            return updated;
+          });
+        },
+        onError: () => {},
+      });
+    } catch {
+      // Fallback to static message if streaming fails
+      setMessages((prev) => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: 'assistant' as const, content: draftMessage };
+        return updated;
+      });
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
+  const handleAskOwn = () => {
+    setShowActionButtons(false);
+    // Just enable normal chat mode
   };
 
   return (
@@ -351,6 +448,32 @@ export function ResultsPage() {
                     </div>
                   );
                 })}
+                
+                {/* Action buttons after initial message */}
+                {showActionButtons && messages.length === 1 && (
+                  <div className="flex gap-3 justify-center mt-4">
+                    <button
+                      onClick={handleDraftBetter}
+                      disabled={isStreaming}
+                      className="px-6 py-3 rounded-xl text-white text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
+                      style={{ backgroundColor: '#4338ca' }}
+                    >
+                      ✍️ Draft Better?
+                    </button>
+                    <button
+                      onClick={handleAskOwn}
+                      disabled={isStreaming}
+                      className="px-6 py-3 rounded-xl text-sm font-semibold transition hover:opacity-90 disabled:opacity-50 border-2"
+                      style={{ 
+                        borderColor: '#4338ca',
+                        color: '#4338ca',
+                        backgroundColor: 'white'
+                      }}
+                    >
+                      💬 Ask Own Questions
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
