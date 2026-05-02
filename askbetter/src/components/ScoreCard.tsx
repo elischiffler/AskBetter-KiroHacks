@@ -1,4 +1,4 @@
-import type { ConversationScores } from "../analysis/types";
+import type { ConversationScores } from '../analysis/types';
 
 interface ScoreCardProps {
   scores: ConversationScores;
@@ -19,14 +19,7 @@ function ScoreItem({ label, score, description, color }: ScoreItemProps) {
     <div className="flex flex-col items-center gap-2 p-4">
       <div className="relative w-24 h-24">
         <svg className="w-24 h-24 -rotate-90" viewBox="0 0 80 80">
-          <circle
-            cx="40"
-            cy="40"
-            r="36"
-            fill="none"
-            stroke="#1e293b"
-            strokeWidth="7"
-          />
+          <circle cx="40" cy="40" r="36" fill="none" stroke="#1e293b" strokeWidth="7" />
           <circle
             cx="40"
             cy="40"
@@ -37,7 +30,7 @@ function ScoreItem({ label, score, description, color }: ScoreItemProps) {
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={offset}
-            style={{ transition: "stroke-dashoffset 0.8s ease" }}
+            style={{ transition: 'stroke-dashoffset 0.8s ease' }}
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
@@ -46,9 +39,7 @@ function ScoreItem({ label, score, description, color }: ScoreItemProps) {
       </div>
       <div className="text-center">
         <div className="text-sm font-semibold text-white">{label}</div>
-        <div className="text-xs text-slate-400 mt-0.5 max-w-[120px]">
-          {description}
-        </div>
+        <div className="text-xs text-slate-400 mt-0.5 max-w-[120px]">{description}</div>
       </div>
     </div>
   );
@@ -57,40 +48,40 @@ function ScoreItem({ label, score, description, color }: ScoreItemProps) {
 export function ScoreCard({ scores }: ScoreCardProps) {
   const items = [
     {
-      label: "Autonomy",
+      label: 'Autonomy',
       score: scores.autonomy,
-      description: "Active thinking vs. offloading",
-      color: "#818cf8",
+      description: 'Active thinking vs. offloading',
+      color: '#818cf8',
     },
     {
-      label: "Curiosity",
+      label: 'Curiosity',
       score: scores.curiosity,
-      description: "Exploratory questions",
-      color: "#60a5fa",
+      description: 'Exploratory questions',
+      color: '#60a5fa',
     },
     {
-      label: "Critical Thinking",
+      label: 'Critical Thinking',
       score: scores.criticalThinking,
-      description: "Verification & reasoning",
-      color: "#34d399",
+      description: 'Verification & reasoning',
+      color: '#34d399',
     },
     {
-      label: "Specificity",
+      label: 'Specificity',
       score: scores.specificity,
-      description: "Context & constraints",
-      color: "#f472b6",
+      description: 'Context & constraints',
+      color: '#f472b6',
     },
     {
-      label: "Context",
+      label: 'Context',
       score: scores.context,
-      description: "Background provided",
-      color: "#fb923c",
+      description: 'Background provided',
+      color: '#fb923c',
     },
     {
-      label: "Engagement",
+      label: 'Engagement',
       score: scores.engagement,
-      description: "Iteration & depth",
-      color: "#fbbf24",
+      description: 'Iteration & depth',
+      color: '#fbbf24',
     },
   ];
 
@@ -100,9 +91,7 @@ export function ScoreCard({ scores }: ScoreCardProps) {
         <h2 className="text-lg font-semibold text-white">Your Scores</h2>
         <div className="flex items-center gap-2 bg-slate-700 rounded-full px-4 py-1.5">
           <span className="text-slate-400 text-sm">Overall</span>
-          <span className="text-white font-bold text-lg">
-            {scores.overallQuality}
-          </span>
+          <span className="text-white font-bold text-lg">{scores.overallQuality}</span>
           <span className="text-slate-400 text-sm">/100</span>
         </div>
       </div>

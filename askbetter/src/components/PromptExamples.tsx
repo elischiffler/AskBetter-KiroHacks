@@ -1,4 +1,4 @@
-import type { AnalyzedPrompt } from "../analysis/types";
+import type { AnalyzedPrompt } from '../analysis/types';
 
 interface PromptExamplesProps {
   passiveExamples: AnalyzedPrompt[];
@@ -6,30 +6,29 @@ interface PromptExamplesProps {
 }
 
 const intentLabels: Record<string, string> = {
-  delegation: "Delegation",
-  curiosity: "Curiosity",
-  collaborative: "Collaborative",
-  verification: "Verification",
+  delegation: 'Delegation',
+  curiosity: 'Curiosity',
+  collaborative: 'Collaborative',
+  verification: 'Verification',
 };
 
 const intentColors: Record<string, string> = {
-  delegation: "bg-red-900/40 text-red-300 border-red-800/50",
-  curiosity: "bg-blue-900/40 text-blue-300 border-blue-800/50",
-  collaborative: "bg-emerald-900/40 text-emerald-300 border-emerald-800/50",
-  verification: "bg-amber-900/40 text-amber-300 border-amber-800/50",
+  delegation: 'bg-red-900/40 text-red-300 border-red-800/50',
+  curiosity: 'bg-blue-900/40 text-blue-300 border-blue-800/50',
+  collaborative: 'bg-emerald-900/40 text-emerald-300 border-emerald-800/50',
+  verification: 'bg-amber-900/40 text-amber-300 border-amber-800/50',
 };
 
 const flagLabels: Record<string, string> = {
-  delegation_with_learning_intent: "Learning intent",
-  shows_prior_attempt: "Shows attempt",
-  asks_for_reasoning: "Asks for reasoning",
-  asks_for_alternatives: "Asks for alternatives",
-  asks_for_risk_or_limitations: "Asks for risks",
+  delegation_with_learning_intent: 'Learning intent',
+  shows_prior_attempt: 'Shows attempt',
+  asks_for_reasoning: 'Asks for reasoning',
+  asks_for_alternatives: 'Asks for alternatives',
+  asks_for_risk_or_limitations: 'Asks for risks',
 };
 
 function PromptBubble({ prompt }: { prompt: AnalyzedPrompt }) {
-  const truncated =
-    prompt.text.length > 200 ? prompt.text.slice(0, 200) + "…" : prompt.text;
+  const truncated = prompt.text.length > 200 ? prompt.text.slice(0, 200) + '…' : prompt.text;
 
   const notableFlags = prompt.flags.filter((f) => flagLabels[f]);
 
@@ -55,10 +54,7 @@ function PromptBubble({ prompt }: { prompt: AnalyzedPrompt }) {
   );
 }
 
-export function PromptExamples({
-  passiveExamples,
-  activeExamples,
-}: PromptExamplesProps) {
+export function PromptExamples({ passiveExamples, activeExamples }: PromptExamplesProps) {
   const hasPassive = passiveExamples.length > 0;
   const hasActive = activeExamples.length > 0;
 
@@ -72,9 +68,7 @@ export function PromptExamples({
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-2 h-2 rounded-full bg-red-400" />
-              <span className="text-sm font-medium text-slate-300">
-                Passive Prompts
-              </span>
+              <span className="text-sm font-medium text-slate-300">Passive Prompts</span>
             </div>
             <div className="flex flex-col gap-2">
               {passiveExamples.map((p, i) => (
@@ -87,9 +81,7 @@ export function PromptExamples({
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span className="text-sm font-medium text-slate-300">
-                Active Prompts
-              </span>
+              <span className="text-sm font-medium text-slate-300">Active Prompts</span>
             </div>
             <div className="flex flex-col gap-2">
               {activeExamples.map((p, i) => (

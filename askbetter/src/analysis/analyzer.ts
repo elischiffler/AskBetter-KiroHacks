@@ -1,30 +1,30 @@
-import { scoreIntents, primaryIntentFrom } from "./classifier";
-import { detectFlags, scorePromptQuality, computeQualityScore } from "./rubric";
-import { detectPatterns } from "./patterns";
-import { generateSummary, generateSuggestions } from "./suggestions";
+import { scoreIntents, primaryIntentFrom } from './classifier';
+import { detectFlags, scorePromptQuality, computeQualityScore } from './rubric';
+import { detectPatterns } from './patterns';
+import { generateSummary, generateSuggestions } from './suggestions';
 import type {
   AnalyzedPrompt,
   AnalysisResult,
   ConversationScores,
   CategoryDistribution,
-} from "./types";
+} from './types';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const CATEGORY_COLORS: Record<string, string> = {
-  delegation: "#f87171",
-  curiosity: "#60a5fa",
-  collaborative: "#34d399",
-  verification: "#fbbf24",
+  delegation: '#f87171',
+  curiosity: '#60a5fa',
+  collaborative: '#34d399',
+  verification: '#fbbf24',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  delegation: "Delegation",
-  curiosity: "Curiosity",
-  collaborative: "Collaborative",
-  verification: "Verification",
+  delegation: 'Delegation',
+  curiosity: 'Curiosity',
+  collaborative: 'Collaborative',
+  verification: 'Verification',
 };
 
 // ---------------------------------------------------------------------------
@@ -53,19 +53,19 @@ export function analyzeConversation(rawPrompts: string[]): AnalysisResult {
 
     // isPassive: delegation + low quality + no learning signals
     const isPassive =
-      primaryIntent === "delegation" &&
+      primaryIntent === 'delegation' &&
       qualityScore < 60 &&
-      !flags.includes("delegation_with_learning_intent") &&
-      !flags.includes("shows_prior_attempt");
+      !flags.includes('delegation_with_learning_intent') &&
+      !flags.includes('shows_prior_attempt');
 
     // isActive: non-delegation intent OR any active learning flag
     const isActive =
-      primaryIntent !== "delegation" ||
-      flags.includes("delegation_with_learning_intent") ||
-      flags.includes("shows_prior_attempt") ||
-      flags.includes("asks_for_reasoning") ||
-      flags.includes("asks_for_alternatives") ||
-      flags.includes("asks_for_risk_or_limitations");
+      primaryIntent !== 'delegation' ||
+      flags.includes('delegation_with_learning_intent') ||
+      flags.includes('shows_prior_attempt') ||
+      flags.includes('asks_for_reasoning') ||
+      flags.includes('asks_for_alternatives') ||
+      flags.includes('asks_for_risk_or_limitations');
 
     return {
       text,
@@ -141,16 +141,12 @@ function clamp(v: number): number {
   return Math.max(0, Math.min(100, v));
 }
 
-function computeConversationScores(
-  prompts: AnalyzedPrompt[],
-): ConversationScores {
+function computeConversationScores(prompts: AnalyzedPrompt[]): ConversationScores {
   const total = prompts.length;
 
   const autonomy = avg(prompts.map((p) => p.qualityScores.autonomy));
   const curiosity = avg(prompts.map((p) => p.qualityScores.curiosity));
-  const criticalThinking = avg(
-    prompts.map((p) => p.qualityScores.criticalThinking),
-  );
+  const criticalThinking = avg(prompts.map((p) => p.qualityScores.criticalThinking));
   const specificity = avg(prompts.map((p) => p.qualityScores.specificity));
   const context = avg(prompts.map((p) => p.qualityScores.context));
 
@@ -160,9 +156,7 @@ function computeConversationScores(
   const lengthScore = Math.min(total / 8, 1) * 35;
   const activeScore = activeRatio * 35;
   const iterationScore = iterationAvg * 0.3;
-  const engagement = clamp(
-    Math.round(lengthScore + activeScore + iterationScore),
-  );
+  const engagement = clamp(Math.round(lengthScore + activeScore + iterationScore));
 
   const overallQuality = avg([
     autonomy,
@@ -201,8 +195,7 @@ function emptyResult(): AnalysisResult {
       overallQuality: 0,
     },
     patterns: [],
-    summary:
-      "No prompts were detected. Try pasting a conversation with clear user messages.",
+    summary: 'No prompts were detected. Try pasting a conversation with clear user messages.',
     suggestions: [],
     passiveExamples: [],
     activeExamples: [],
