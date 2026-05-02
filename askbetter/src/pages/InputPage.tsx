@@ -102,14 +102,6 @@ export function InputPage() {
           <p className="text-center text-gray-500 text-sm mb-8">
             Paste your ChatGPT share link below to get detailed insights and feedback
           </p>
-          <div className="flex justify-center mb-6">
-            <button
-              onClick={() => navigate('/chat')}
-              className="text-xs font-semibold px-3 py-1.5 rounded-full border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition"
-            >
-              Open Live Chat
-            </button>
-          </div>
 
           {/* Mode toggle */}
           <div className="flex gap-2 mb-5">
