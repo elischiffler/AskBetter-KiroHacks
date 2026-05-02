@@ -27,6 +27,54 @@ const CHROMIUM_PATH =
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_MODEL = 'llama-3.1-8b-instant';
+const MAX_MESSAGES = 50;
+const MAX_CONTENT_LENGTH = 4000;
+const MAX_TOTAL_CONTENT = 20000;
+
+app.use(express.json({ limit: '256kb' }));
+
+function sendSseEvent(res, event, payload) {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function validateChatMessages(messages) {
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return { ok: false, error: 'messages must be a non-empty array.' };
+  }
+
+  if (messages.length > MAX_MESSAGES) {
+    return { ok: false, error: `messages cannot exceed ${MAX_MESSAGES} items.` };
+  }
+
+  let totalLength = 0;
+  for (const item of messages) {
+    if (!item || typeof item !== 'object') {
+      return { ok: false, error: 'each message must be an object.' };
+    }
+    if (item.role !== 'user' && item.role !== 'assistant') {
+      return { ok: false, error: 'message role must be "user" or "assistant".' };
+    }
+    if (typeof item.content !== 'string' || !item.content.trim()) {
+      return { ok: false, error: 'message content must be a non-empty string.' };
+    }
+    if (item.content.length > MAX_CONTENT_LENGTH) {
+      return {
+        ok: false,
+        error: `message content exceeds ${MAX_CONTENT_LENGTH} characters.`,
+      };
+    }
+    totalLength += item.content.length;
+  }
+
+  if (totalLength > MAX_TOTAL_CONTENT) {
+    return { ok: false, error: `total message content exceeds ${MAX_TOTAL_CONTENT} characters.` };
+  }
+
+  return { ok: true, error: null };
+}
 
 // ---------------------------------------------------------------------------
 // Security: allowlist of permitted hostnames and path prefix
@@ -184,6 +232,120 @@ app.get('/api/fetch-share', async (req, res) => {
     });
   } finally {
     if (browser) await browser.close();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/chat/stream
+// Streams assistant response from Groq as SSE events
+// ---------------------------------------------------------------------------
+app.post('/api/chat/stream', async (req, res) => {
+  const messages = req.body?.messages;
+  const validation = validateChatMessages(messages);
+
+  if (!validation.ok) {
+    return res.status(400).json({ error: validation.error });
+  }
+
+  if (!GROQ_API_KEY) {
+    return res.status(503).json({
+      error: 'GROQ_API_KEY is not configured on the server.',
+    });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
+
+  const abortController = new AbortController();
+  req.on('close', () => abortController.abort());
+
+  try {
+    const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages,
+        stream: true,
+      }),
+      signal: abortController.signal,
+    });
+
+    if (!groqResponse.ok) {
+      let detail = `Groq request failed with status ${groqResponse.status}.`;
+      try {
+        const upstream = await groqResponse.json();
+        detail = upstream?.error?.message || detail;
+      } catch {}
+
+      if (groqResponse.status === 401 || groqResponse.status === 403) {
+        sendSseEvent(res, 'error', {
+          code: 'INVALID_API_KEY',
+          message: 'Groq API key rejected by upstream service.',
+        });
+      } else {
+        sendSseEvent(res, 'error', { code: 'UPSTREAM_ERROR', message: detail });
+      }
+      return res.end();
+    }
+
+    const reader = groqResponse.body?.getReader();
+    if (!reader) {
+      sendSseEvent(res, 'error', { code: 'UPSTREAM_ERROR', message: 'No response stream from Groq.' });
+      return res.end();
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split('\n\n');
+      buffer = events.pop() || '';
+
+      for (const eventBlock of events) {
+        const lines = eventBlock.split('\n');
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue;
+          const data = line.slice(5).trim();
+          if (data === '[DONE]') {
+            sendSseEvent(res, 'end', { done: true });
+            return res.end();
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            const text = parsed?.choices?.[0]?.delta?.content;
+            if (typeof text === 'string' && text.length > 0) {
+              sendSseEvent(res, 'token', { text });
+            }
+          } catch {
+            // Ignore malformed chunks and continue streaming.
+          }
+        }
+      }
+    }
+
+    sendSseEvent(res, 'end', { done: true });
+    return res.end();
+  } catch (err) {
+    if (abortController.signal.aborted) {
+      return res.end();
+    }
+    const message = err instanceof Error ? err.message : 'Unknown streaming error.';
+    sendSseEvent(res, 'error', {
+      code: 'STREAM_FAILURE',
+      message,
+    });
+    return res.end();
   }
 });
 
