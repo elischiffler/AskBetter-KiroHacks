@@ -9,6 +9,7 @@ import {
   getLinkErrorMessage,
 } from '../analysis/linkParser';
 import { SAMPLE_CONVERSATION, SAMPLE_PASSIVE_CONVERSATION } from '../lib/sampleData';
+import { Header } from '../components/Header';
 
 export function InputPage() {
   const [url, setUrl] = useState('');
@@ -79,9 +80,10 @@ export function InputPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4 py-12"
+      className="min-h-screen flex items-center justify-center px-4 py-12 pt-20"
       style={{ background: 'linear-gradient(135deg, #e8eaf6 0%, #ede9f7 50%, #e3e8f5 100%)' }}
     >
+      <Header />
       <div className="w-full max-w-xl">
         {/* Card */}
         <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/60 p-10">

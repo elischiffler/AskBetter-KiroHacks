@@ -2,19 +2,12 @@
   "mcpServers": {
     "figma": {
       "command": "npx",
-      "args": [
-        "-y",
-        "figma-developer-mcp",
-        "--stdio"
-      ],
+      "args": ["-y", "figma-developer-mcp", "--stdio"],
       "env": {
         "FIGMA_API_KEY": "figd_3UIdhbt6IoM86VIA0TN7l2ZVy9S8KYswu25ReMGe"
       },
       "disabled": false,
-      "autoApprove": [
-        "get_figma_data",
-        "get_figma_data"
-      ]
+      "autoApprove": ["get_figma_data", "get_figma_data"]
     },
     "power-supabase-hosted-supabase": {
       "url": "https://mcp.supabase.com/mcp",
@@ -25,7 +18,17 @@
       "autoApprove": [
         "list_projects",
         "get_project_url",
-        "get_publishable_keys"
+        "get_publishable_keys",
+        "list_projects",
+        "list_tables",
+        "list_projects",
+        "get_project_url",
+        "get_publishable_keys",
+        "list_tables",
+        "apply_migration",
+        "get_advisors",
+        "apply_migration",
+        "execute_sql"
       ]
     }
   }
