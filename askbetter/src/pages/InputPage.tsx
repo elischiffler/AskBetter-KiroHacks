@@ -3,7 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Link2, FileText } from 'lucide-react';
 import { parseConversation } from '../analysis/parser';
 import { analyzeConversation } from '../analysis/analyzer';
-import { SAMPLE_CONVERSATION, SAMPLE_PASSIVE_CONVERSATION } from '../lib/sampleData';
+import {
+  SAMPLE_CONVERSATION,
+  SAMPLE_PASSIVE_CONVERSATION,
+  SAMPLE_DELEGATION_WITH_LEARNING,
+  SAMPLE_VERIFICATION_CONVERSATION,
+  SAMPLE_COPY_PASTE_CONVERSATION,
+} from '../lib/sampleData';
 
 export function InputPage() {
   const [url, setUrl] = useState('');
@@ -14,7 +20,6 @@ export function InputPage() {
 
   const handleAnalyze = () => {
     setError('');
-    // In link mode, treat the URL field as raw text for now (no backend fetch)
     const input = mode === 'link' ? url.trim() : text.trim();
     if (!input) {
       setError(
@@ -24,12 +29,12 @@ export function InputPage() {
       );
       return;
     }
-    const prompts = parseConversation(input);
-    if (prompts.length === 0) {
-      setError('No user messages detected. Try pasting the conversation text directly.');
+    const parsed = parseConversation(input);
+    if (!parsed.ok) {
+      setError(parsed.error);
       return;
     }
-    const result = analyzeConversation(prompts);
+    const result = analyzeConversation(parsed.messages);
     navigate('/results', { state: { result } });
   };
 
@@ -155,20 +160,41 @@ export function InputPage() {
           </div>
 
           {/* Sample buttons */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => loadSample(SAMPLE_CONVERSATION)}
               className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 py-2 px-3 rounded-lg border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 transition"
             >
               <FileText className="w-3.5 h-3.5" />
-              Active sample
+              Active learning
             </button>
             <button
               onClick={() => loadSample(SAMPLE_PASSIVE_CONVERSATION)}
               className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 py-2 px-3 rounded-lg border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 transition"
             >
               <FileText className="w-3.5 h-3.5" />
-              Passive sample
+              Passive
+            </button>
+            <button
+              onClick={() => loadSample(SAMPLE_DELEGATION_WITH_LEARNING)}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 py-2 px-3 rounded-lg border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 transition"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Delegation + learning
+            </button>
+            <button
+              onClick={() => loadSample(SAMPLE_VERIFICATION_CONVERSATION)}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 py-2 px-3 rounded-lg border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 transition"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Verification
+            </button>
+            <button
+              onClick={() => loadSample(SAMPLE_COPY_PASTE_CONVERSATION)}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 py-2 px-3 rounded-lg border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 transition"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Copy-paste
             </button>
           </div>
 
