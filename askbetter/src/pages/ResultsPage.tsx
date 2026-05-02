@@ -171,9 +171,18 @@ export function ResultsPage() {
 
         {/* Main results card */}
         <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/60 p-8 mb-4">
-          <h1 className="text-2xl font-bold mb-6" style={{ color: '#1e1b4b' }}>
-            Chat Analysis Results
-          </h1>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold" style={{ color: '#1e1b4b' }}>
+              Chat Analysis Results
+            </h1>
+            <div className="flex items-center gap-1.5 rounded-full px-4 py-1.5" style={{ backgroundColor: '#f0f4ff' }}>
+              <span className="text-sm text-gray-500">Overall</span>
+              <span className="text-xl font-bold" style={{ color: '#4338ca' }}>
+                {result.scores.overallQuality}
+              </span>
+              <span className="text-sm text-gray-500">/100</span>
+            </div>
+          </div>
 
           {/* Stat cards */}
           <div className="grid grid-cols-2 gap-3 mb-8">
@@ -208,7 +217,10 @@ export function ResultsPage() {
           {/* Divider */}
           <div className="h-px bg-gray-100 my-6" />
 
-          {/* Score bars */}
+          {/* Prompt scoring breakdown */}
+          <h2 className="text-base font-bold mb-4" style={{ color: '#1e1b4b' }}>
+            Prompt Scoring Breakdown
+          </h2>
           {scoreItems.map((s) => (
             <ProgressBar
               key={s.key}
