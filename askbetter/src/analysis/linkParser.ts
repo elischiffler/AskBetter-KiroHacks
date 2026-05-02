@@ -1,4 +1,4 @@
-import { parseConversation } from "./parser";
+import { parseConversation } from './parser';
 
 // ---------------------------------------------------------------------------
 // Config — server proxy URL
@@ -6,8 +6,7 @@ import { parseConversation } from "./parser";
 
 // Vite exposes env vars prefixed with VITE_ via import.meta.env
 // Falls back to localhost:3001 for local development
-const PROXY_BASE: string =
-  import.meta.env.VITE_PROXY_URL || "http://localhost:3001";
+const PROXY_BASE: string = import.meta.env.VITE_PROXY_URL || 'http://localhost:3001';
 
 // ---------------------------------------------------------------------------
 // URL detection
@@ -20,8 +19,8 @@ const PROXY_BASE: string =
 export function isChatGPTShareUrl(input: string): boolean {
   const trimmed = input.trim();
   return (
-    trimmed.startsWith("https://chatgpt.com/share/") ||
-    trimmed.startsWith("https://chat.openai.com/share/")
+    trimmed.startsWith('https://chatgpt.com/share/') ||
+    trimmed.startsWith('https://chat.openai.com/share/')
   );
 }
 
@@ -80,10 +79,10 @@ function extractFromEmbeddedJson(html: string): string[] | null {
 
 function decodeJsonString(s: string): string {
   return s
-    .replace(/\\n/g, "\n")
-    .replace(/\\t/g, " ")
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, ' ')
     .replace(/\\"/g, '"')
-    .replace(/\\\\/g, "\\")
+    .replace(/\\\\/g, '\\')
     .trim();
 }
 
@@ -92,26 +91,26 @@ function decodeJsonString(s: string): string {
  */
 function extractReadableText(html: string): string {
   let text = html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "");
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '');
 
-  text = text.replace(/<\/(p|div|li|h[1-6]|tr)>/gi, "\n");
-  text = text.replace(/<br\s*\/?>/gi, "\n");
-  text = text.replace(/<[^>]+>/g, "");
+  text = text.replace(/<\/(p|div|li|h[1-6]|tr)>/gi, '\n');
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+  text = text.replace(/<[^>]+>/g, '');
 
   text = text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ");
+    .replace(/&nbsp;/g, ' ');
 
   return text
-    .split("\n")
+    .split('\n')
     .map((l) => l.trim())
     .filter(Boolean)
-    .join("\n");
+    .join('\n');
 }
 
 /**
@@ -121,12 +120,12 @@ function extractReadableText(html: string): string {
 export function extractConversationTextFromHtml(html: string): string {
   const jsonMessages = extractFromEmbeddedJson(html);
   if (jsonMessages && jsonMessages.length > 0) {
-    return jsonMessages.map((m) => `You: ${m}`).join("\n\n");
+    return jsonMessages.map((m) => `You: ${m}`).join('\n\n');
   }
 
   const text = extractReadableText(html);
   if (text.length < 100) {
-    throw new Error("EXTRACTION_TOO_SHORT");
+    throw new Error('EXTRACTION_TOO_SHORT');
   }
 
   return text;
@@ -142,31 +141,32 @@ export function extractConversationTextFromHtml(html: string): string {
  */
 export async function fetchSharedConversation(url: string): Promise<string> {
   if (!isChatGPTShareUrl(url)) {
-    throw new Error("INVALID_URL");
+    throw new Error('INVALID_URL');
   }
 
   let response: Response;
   try {
-    response = await fetch(
-      `${PROXY_BASE}/api/fetch-share?url=${encodeURIComponent(url)}`,
-      { signal: AbortSignal.timeout(15_000) },
-    );
+    response = await fetch(`${PROXY_BASE}/api/fetch-share?url=${encodeURIComponent(url)}`, {
+      signal: AbortSignal.timeout(30_000),
+    });
   } catch {
-    throw new Error("SERVER_UNREACHABLE");
+    throw new Error('SERVER_UNREACHABLE');
   }
 
   let data: { html?: string; error?: string };
   try {
     data = (await response.json()) as { html?: string; error?: string };
   } catch {
-    throw new Error("FETCH_FAILED");
+    throw new Error('FETCH_FAILED');
   }
 
   if (!response.ok || !data.html) {
     // Surface the server's error message if available
-    throw new Error(data.error ? `SERVER_ERROR:${data.error}` : "FETCH_FAILED");
+    throw new Error(data.error ? `SERVER_ERROR:${data.error}` : 'FETCH_FAILED');
   }
 
+  // The server returns either a pre-formatted "You: ..." transcript
+  // (from Puppeteer DOM extraction) or raw HTML as fallback.
   return data.html;
 }
 
@@ -182,12 +182,12 @@ export async function getPromptsFromInput(input: string): Promise<string[]> {
   const trimmed = input.trim();
 
   if (isChatGPTShareUrl(trimmed)) {
-    const html = await fetchSharedConversation(trimmed);
-    const conversationText = extractConversationTextFromHtml(html);
-    const prompts = parseConversation(conversationText);
+    // Server returns a pre-formatted "You: ..." transcript from Puppeteer DOM extraction
+    const transcript = await fetchSharedConversation(trimmed);
+    const prompts = parseConversation(transcript);
 
     if (prompts.length === 0) {
-      throw new Error("NO_PROMPTS_FOUND");
+      throw new Error('NO_PROMPTS_FOUND');
     }
 
     return prompts;
@@ -201,22 +201,22 @@ export async function getPromptsFromInput(input: string): Promise<string[]> {
 // ---------------------------------------------------------------------------
 
 export function getLinkErrorMessage(errorCode: string): string {
-  if (errorCode.startsWith("SERVER_ERROR:")) {
-    const detail = errorCode.replace("SERVER_ERROR:", "");
+  if (errorCode.startsWith('SERVER_ERROR:')) {
+    const detail = errorCode.replace('SERVER_ERROR:', '');
     return `Could not read the shared conversation: ${detail} Please open the link, copy the conversation text, and paste it here instead.`;
   }
 
   switch (errorCode) {
-    case "SERVER_UNREACHABLE":
+    case 'SERVER_UNREACHABLE':
       return "The AskBetter proxy server isn't running. Start it with: cd server && npm start — then try again.";
-    case "FETCH_FAILED":
+    case 'FETCH_FAILED':
       return "We couldn't fetch that shared conversation. The link may be private or expired. Try opening it and pasting the text directly.";
-    case "EXTRACTION_TOO_SHORT":
-    case "NO_PROMPTS_FOUND":
+    case 'EXTRACTION_TOO_SHORT':
+    case 'NO_PROMPTS_FOUND':
       return "We fetched the link but couldn't extract the conversation messages. Open the link, copy the conversation text, and paste it here instead.";
-    case "INVALID_URL":
+    case 'INVALID_URL':
       return "That doesn't look like a valid ChatGPT share link. Paste the full URL starting with https://chatgpt.com/share/ or paste the conversation transcript directly.";
     default:
-      return "Something went wrong reading that link. Please paste the conversation transcript directly instead.";
+      return 'Something went wrong reading that link. Please paste the conversation transcript directly instead.';
   }
 }
