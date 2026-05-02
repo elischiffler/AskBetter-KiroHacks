@@ -1,44 +1,35 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, ChevronRight, FileText } from "lucide-react";
+import { Link2, FileText } from "lucide-react";
 import { parseConversation } from "../analysis/parser";
 import { analyzeConversation } from "../analysis/analyzer";
 import {
   SAMPLE_CONVERSATION,
   SAMPLE_PASSIVE_CONVERSATION,
-  SAMPLE_DELEGATION_WITH_LEARNING,
-  SAMPLE_VERIFICATION_CONVERSATION,
-  SAMPLE_COPY_PASTE_CONVERSATION,
 } from "../lib/sampleData";
 
-interface SampleButton {
-  label: string;
-  data: string;
-}
-
-const SAMPLES: SampleButton[] = [
-  { label: "Active learning", data: SAMPLE_CONVERSATION },
-  { label: "Passive delegation", data: SAMPLE_PASSIVE_CONVERSATION },
-  { label: "Delegation + learning", data: SAMPLE_DELEGATION_WITH_LEARNING },
-  { label: "Verification", data: SAMPLE_VERIFICATION_CONVERSATION },
-  { label: "Copy-paste", data: SAMPLE_COPY_PASTE_CONVERSATION },
-];
-
 export function InputPage() {
+  const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [error, setError] = useState("");
+  const [mode, setMode] = useState<"link" | "paste">("link");
   const navigate = useNavigate();
 
   const handleAnalyze = () => {
     setError("");
-    const trimmed = text.trim();
-    if (!trimmed) {
-      setError("Please paste a conversation before analyzing.");
+    // In link mode, treat the URL field as raw text for now (no backend fetch)
+    const input = mode === "link" ? url.trim() : text.trim();
+    if (!input) {
+      setError(
+        mode === "link"
+          ? "Please enter a ChatGPT share link or switch to paste mode."
+          : "Please paste a conversation before analyzing."
+      );
       return;
     }
-    const prompts = parseConversation(trimmed);
+    const prompts = parseConversation(input);
     if (prompts.length === 0) {
-      setError("No user messages detected. Try the format hint below.");
+      setError("No user messages detected. Try pasting the conversation text directly.");
       return;
     }
     const result = analyzeConversation(prompts);
@@ -47,119 +38,149 @@ export function InputPage() {
 
   const loadSample = (sample: string) => {
     setText(sample);
+    setUrl("");
+    setMode("paste");
     setError("");
   };
 
+  const isDisabled = mode === "link" ? !url.trim() : !text.trim();
+
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      {/* Header */}
-      <header className="border-b border-slate-800 px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-indigo-400" />
-          <span className="text-white font-bold text-lg tracking-tight">
-            AskBetter
-          </span>
-          <span className="text-slate-500 text-sm ml-1">
-            Better questions, better answers
-          </span>
-        </div>
-      </header>
-
-      {/* Hero */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        <div className="w-full max-w-2xl">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-white mb-3 tracking-tight">
-              Analyze your AI conversations
-            </h1>
-            <p className="text-slate-400 text-lg">
-              Paste a ChatGPT conversation and get instant feedback on how
-              you're prompting.
-            </p>
-          </div>
-
-          {/* Textarea */}
-          <div className="relative">
-            <textarea
-              className="w-full h-64 bg-slate-800 border border-slate-700 rounded-2xl p-4 text-slate-200 text-sm placeholder-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
-              placeholder={`Paste your ChatGPT conversation here...\n\nExample format:\nYou: Write me a Python script...\nChatGPT: Sure! Here's...\nYou: Why does this work?\nChatGPT: Great question...`}
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                setError("");
-              }}
-            />
-            {text && (
-              <button
-                onClick={() => setText("")}
-                className="absolute top-3 right-3 text-slate-500 hover:text-slate-300 text-xs transition"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-
-          {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
-
-          {/* Analyze button */}
-          <div className="mt-4">
-            <button
-              onClick={handleAnalyze}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded-xl transition active:scale-95"
-            >
-              Analyze conversation
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Sample conversations */}
-          <div className="mt-5">
-            <p className="text-slate-500 text-xs uppercase tracking-wider mb-2 font-medium">
-              Try a sample
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {SAMPLES.map((s) => (
-                <button
-                  key={s.label}
-                  onClick={() => loadSample(s.data)}
-                  className="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-sm px-3 py-1.5 rounded-lg hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 transition"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  {s.label}
-                </button>
-              ))}
+    <div className="min-h-screen flex items-center justify-center px-4 py-12"
+      style={{ background: "linear-gradient(135deg, #e8eaf6 0%, #ede9f7 50%, #e3e8f5 100%)" }}>
+      <div className="w-full max-w-xl">
+        {/* Card */}
+        <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/60 p-10">
+          {/* Icon */}
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: "#e8eaf6" }}>
+              <Link2 className="w-7 h-7" style={{ color: "#4338ca" }} />
             </div>
           </div>
 
-          {/* Format hint */}
-          <div className="mt-8 bg-slate-800/50 border border-slate-700/50 rounded-xl p-4">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-2">
-              Supported formats
-            </p>
-            <ul className="text-slate-400 text-sm space-y-1">
-              <li>
-                <span className="text-slate-300">Labeled:</span> Lines starting
-                with{" "}
-                <code className="text-indigo-400 bg-slate-700 px-1 rounded text-xs">
-                  You:
-                </code>
-                ,{" "}
-                <code className="text-indigo-400 bg-slate-700 px-1 rounded text-xs">
-                  User:
-                </code>
-                , or{" "}
-                <code className="text-indigo-400 bg-slate-700 px-1 rounded text-xs">
-                  Human:
-                </code>
-              </li>
-              <li>
-                <span className="text-slate-300">Alternating blocks:</span>{" "}
-                Paragraphs separated by blank lines (user first)
-              </li>
-            </ul>
+          {/* Title */}
+          <h1 className="text-3xl font-bold text-center mb-2"
+            style={{ color: "#3730a3" }}>
+            ChatGPT Chat Analyzer
+          </h1>
+          <p className="text-center text-gray-500 text-sm mb-8">
+            Paste your ChatGPT share link below to get detailed insights and feedback
+          </p>
+
+          {/* Mode toggle */}
+          <div className="flex gap-2 mb-5">
+            <button
+              onClick={() => setMode("link")}
+              className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${
+                mode === "link"
+                  ? "text-white shadow-sm"
+                  : "text-gray-500 bg-gray-100 hover:bg-gray-200"
+              }`}
+              style={mode === "link" ? { backgroundColor: "#4338ca" } : {}}
+            >
+              Share Link
+            </button>
+            <button
+              onClick={() => setMode("paste")}
+              className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${
+                mode === "paste"
+                  ? "text-white shadow-sm"
+                  : "text-gray-500 bg-gray-100 hover:bg-gray-200"
+              }`}
+              style={mode === "paste" ? { backgroundColor: "#4338ca" } : {}}
+            >
+              Paste Text
+            </button>
           </div>
+
+          {/* Input */}
+          {mode === "link" ? (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                ChatGPT Share Link
+              </label>
+              <input
+                type="url"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition"
+                style={{ "--tw-ring-color": "#4338ca" } as React.CSSProperties}
+                placeholder="https://chatgpt.com/share/..."
+                value={url}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setUrl(e.target.value);
+                  setError("");
+                }}
+                onKeyDown={(e: React.KeyboardEvent) => e.key === "Enter" && handleAnalyze()}
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Conversation Text
+              </label>
+              <textarea
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:border-transparent transition"
+                style={{ "--tw-ring-color": "#4338ca" } as React.CSSProperties}
+                placeholder={`Paste your ChatGPT conversation here...\n\nYou: Write me a Python script...\nChatGPT: Sure! Here's...\nYou: Why does this work?`}
+                rows={6}
+                value={text}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+                  setText(e.target.value);
+                  setError("");
+                }}
+              />
+            </div>
+          )}
+
+          {error && (
+            <p className="text-red-500 text-xs mt-2">{error}</p>
+          )}
+
+          {/* Analyze button */}
+          <button
+            onClick={handleAnalyze}
+            disabled={isDisabled}
+            className="w-full mt-4 py-3.5 rounded-xl text-white font-semibold text-sm transition active:scale-[0.98]"
+            style={{
+              backgroundColor: isDisabled ? "#c7c9d9" : "#4338ca",
+              cursor: isDisabled ? "not-allowed" : "pointer",
+            }}
+          >
+            Analyze Chat
+          </button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-gray-100" />
+            <span className="text-xs text-gray-400">or try a sample</span>
+            <div className="flex-1 h-px bg-gray-100" />
+          </div>
+
+          {/* Sample buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => loadSample(SAMPLE_CONVERSATION)}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 py-2 px-3 rounded-lg border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 transition"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Active sample
+            </button>
+            <button
+              onClick={() => loadSample(SAMPLE_PASSIVE_CONVERSATION)}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 py-2 px-3 rounded-lg border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50 transition"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Passive sample
+            </button>
+          </div>
+
+          {/* Footer note */}
+          <p className="text-center text-xs text-gray-400 mt-6 leading-relaxed">
+            This tool analyzes your ChatGPT conversations to provide insights on
+            conversation quality, tone, and effectiveness
+          </p>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
