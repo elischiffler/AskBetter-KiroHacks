@@ -223,7 +223,7 @@ export async function fetchSharedConversation(url: string): Promise<string> {
   let response: Response;
   try {
     response = await fetch(`${PROXY_BASE}/api/fetch-share?url=${encodeURIComponent(url)}`, {
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(60_000),
     });
   } catch {
     throw new Error('SERVER_UNREACHABLE');
@@ -290,7 +290,7 @@ export async function getPromptsAndTimestamp(
   let response: Response;
   try {
     response = await fetch(`${PROXY_BASE}/api/fetch-share?url=${encodeURIComponent(trimmed)}`, {
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(60_000),
     });
   } catch {
     throw new Error('SERVER_UNREACHABLE');

@@ -146,13 +146,85 @@ app.use(
 function extractMessagesFromHtml(html) {
   const userMessages = [];
 
-  // Strategy A: Look for JSON with role/content patterns in script tags
+  // ── Strategy A: Parse __NEXT_DATA__ JSON (ChatGPT) ──────────────────────
+  const nextDataMatch = html.match(/<script\s+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+  if (nextDataMatch) {
+    try {
+      const data = JSON.parse(nextDataMatch[1]);
+      // Walk the entire JSON tree looking for user messages
+      const walk = (obj) => {
+        if (!obj || typeof obj !== 'object') return;
+        if (Array.isArray(obj)) {
+          obj.forEach(walk);
+          return;
+        }
+        // ChatGPT structure: { author: { role: "user" }, content: { parts: ["..."] } }
+        const role = obj?.author?.role || obj?.role;
+        if (role === 'user' || role === 'human') {
+          let text = '';
+          if (obj.content?.parts) {
+            text = obj.content.parts
+              .filter((p) => typeof p === 'string')
+              .join('\n')
+              .trim();
+          } else if (typeof obj.content === 'string') {
+            text = obj.content.trim();
+          }
+          if (text.length > 0 && !userMessages.includes(text)) {
+            userMessages.push(text);
+          }
+        }
+        Object.values(obj).forEach(walk);
+      };
+      walk(data);
+      if (userMessages.length > 0) {
+        console.log(`[extract] __NEXT_DATA__ found ${userMessages.length} user messages`);
+        return { messages: userMessages, strategy: 'next-data-json' };
+      }
+    } catch (e) {
+      console.log('[extract] __NEXT_DATA__ parse failed:', e.message);
+    }
+  }
+
+  // ── Strategy B: Regex scan script tags for role/content patterns ─────────
   const scriptPattern = /<script[^>]*>([\s\S]*?)<\/script>/gi;
   let match;
   while ((match = scriptPattern.exec(html)) !== null) {
     const content = match[1];
     if (content.includes('"role"') && (content.includes('"user"') || content.includes('"human"'))) {
-      // role before content
+      // Try to parse as JSON first
+      try {
+        const parsed = JSON.parse(content);
+        const walk = (obj) => {
+          if (!obj || typeof obj !== 'object') return;
+          if (Array.isArray(obj)) {
+            obj.forEach(walk);
+            return;
+          }
+          const role = obj?.author?.role || obj?.role;
+          if (role === 'user' || role === 'human') {
+            let text = '';
+            if (obj.content?.parts) {
+              text = obj.content.parts
+                .filter((p) => typeof p === 'string')
+                .join('\n')
+                .trim();
+            } else if (typeof obj.content === 'string') {
+              text = obj.content.trim();
+            }
+            if (text.length > 0 && !userMessages.includes(text)) userMessages.push(text);
+          }
+          Object.values(obj).forEach(walk);
+        };
+        walk(parsed);
+        if (userMessages.length > 0) {
+          return { messages: userMessages, strategy: 'script-json-parse' };
+        }
+      } catch {
+        // Not valid JSON, fall through to regex
+      }
+
+      // Regex fallback: role before content
       const rc = /"role"\s*:\s*"(user|human)"[\s\S]{0,500}?"content"\s*:\s*"((?:[^"\\]|\\.)*)"/gi;
       let m;
       while ((m = rc.exec(content)) !== null) {
@@ -182,10 +254,10 @@ function extractMessagesFromHtml(html) {
   }
 
   if (userMessages.length > 0) {
-    return { messages: userMessages, strategy: 'json-extraction' };
+    return { messages: userMessages, strategy: 'regex-extraction' };
   }
 
-  // Strategy B: Look for content in JSON arrays with parts
+  // ── Strategy C: Look for content in JSON arrays with parts ──────────────
   const partsPattern = /"parts"\s*:\s*\[\s*"((?:[^"\\]|\\.)*)"/gi;
   while ((match = partsPattern.exec(html)) !== null) {
     const text = match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\').trim();
@@ -196,7 +268,7 @@ function extractMessagesFromHtml(html) {
     return { messages: userMessages, strategy: 'parts-extraction' };
   }
 
-  // Strategy C: Strip HTML and return readable text
+  // ── Strategy D: Strip HTML and return readable text ─────────────────────
   let text = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -288,6 +360,7 @@ app.get('/api/fetch-share', async (req, res) => {
   let browser;
   try {
     console.log('[fetch-share] Falling back to Puppeteer...');
+    console.log('[fetch-share] Chromium path:', CHROMIUM_PATH);
     browser = await puppeteer.launch({
       executablePath: CHROMIUM_PATH,
       headless: true,
@@ -296,8 +369,11 @@ app.get('/api/fetch-share', async (req, res) => {
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
+        '--single-process',
+        '--no-zygote',
       ],
     });
+    console.log('[fetch-share] Chromium launched successfully');
 
     const page = await browser.newPage();
 
