@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogIn, LogOut, User } from 'lucide-react';
+import { LogIn, LogOut, User, BarChart3 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export function Header() {
@@ -33,6 +33,26 @@ export function Header() {
       <div className="flex items-center gap-3">
         {loading ? null : user ? (
           <>
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-lg transition-all"
+              style={{
+                backgroundColor: 'transparent',
+                border: '1px solid rgba(139, 92, 246, 0.35)',
+                color: '#a78bfa',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#7c3aed';
+                e.currentTarget.style.color = '#f5f3ff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.35)';
+                e.currentTarget.style.color = '#a78bfa';
+              }}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              Dashboard
+            </Link>
             <span
               className="hidden sm:flex items-center gap-1.5 text-xs font-medium"
               style={{ color: '#a78bfa' }}

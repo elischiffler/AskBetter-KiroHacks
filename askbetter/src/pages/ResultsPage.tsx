@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -13,6 +13,8 @@ import {
 import type { AnalysisResult } from '../analysis/types';
 import { Header } from '../components/Header';
 import { streamChatReply, type ChatMessage } from '../lib/chatClient';
+import { useAuth } from '../context/AuthContext';
+import { saveAnalysis } from '../lib/dashboardService';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -152,7 +154,21 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 export function ResultsPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const result = location.state?.result as AnalysisResult | undefined;
+
+  // Save analysis to database when user is logged in
+  useEffect(() => {
+    if (result && user) {
+      const passiveCount = result.passiveExamples.length;
+      const activeCount = result.activeExamples.length;
+      const promptCount = result.prompts.length;
+
+      saveAnalysis(user.id, result.scores, promptCount, passiveCount, activeCount).catch((err) => {
+        console.error('Failed to save analysis:', err);
+      });
+    }
+  }, [result, user]);
 
   if (!result) {
     navigate('/');
@@ -214,8 +230,8 @@ export function ResultsPage() {
     const generateInitialMessage = () => {
       // Build summary based on analysis
       const overallScore = result.scores.overallQuality;
-      
-      const primaryCategory = result.distribution.reduce((max, d) => 
+
+      const primaryCategory = result.distribution.reduce((max, d) =>
         d.value > max.value ? d : max
       );
 
@@ -243,7 +259,7 @@ export function ResultsPage() {
       const initialMessage = `📊 **Analysis Summary:** Your prompts show ${primaryCategory.name.toLowerCase()} patterns (${Math.round((primaryCategory.value / categoryTotal) * 100)}%) with an overall quality score of ${overallScore}/100.
 
 **Key Issues:**
-${topIssues.map(issue => `• ${issue}`).join('\n')}
+${topIssues.map((issue) => `• ${issue}`).join('\n')}
 
 I can help you rewrite these prompts to be more effective and get better AI responses. Would you like me to guide you?`;
 
@@ -266,10 +282,14 @@ I can help you rewrite these prompts to be more effective and get better AI resp
       role: 'user' as const,
       content: `[CONTEXT] Here are the original prompts I analyzed:
 
-${result.prompts.map((p, i) => `Prompt ${i + 1} (Score: ${p.qualityScore}/100, Intent: ${p.primaryIntent}):
+${result.prompts
+  .map(
+    (p, i) => `Prompt ${i + 1} (Score: ${p.qualityScore}/100, Intent: ${p.primaryIntent}):
 "${p.text}"
 Flags: ${p.flags.length > 0 ? p.flags.join(', ') : 'none'}
-`).join('\n')}
+`
+  )
+  .join('\n')}
 
 Analysis Summary:
 - Overall Quality: ${result.scores.overallQuality}/100
@@ -280,16 +300,16 @@ Analysis Summary:
 - Context: ${result.scores.context}/100
 - Engagement: ${result.scores.engagement}/100
 
-Patterns Detected: ${result.patterns.map(p => p.label).join(', ')}
+Patterns Detected: ${result.patterns.map((p) => p.label).join(', ')}
 
-Now, here's my question:`
+Now, here's my question:`,
     };
 
     const userMessage: ChatMessage = { role: 'user' as const, content };
-    
+
     // For the first user message, include context
-    const isFirstUserMessage = messages.filter(m => m.role === 'user').length === 0;
-    const messagesToSend = isFirstUserMessage 
+    const isFirstUserMessage = messages.filter((m) => m.role === 'user').length === 0;
+    const messagesToSend = isFirstUserMessage
       ? [contextMessage, ...messages, userMessage]
       : [...messages, userMessage];
 
@@ -333,11 +353,11 @@ Now, here's my question:`
 
   const handleDraftBetter = async () => {
     setShowActionButtons(false);
-    
+
     // Find worst prompts
     const sortedPrompts = [...result.prompts].sort((a, b) => a.qualityScore - b.qualityScore);
     const worstPrompts = sortedPrompts.slice(0, 3);
-    
+
     const draftMessage = `Great! Let's improve your prompts together. I'll guide you through rewriting your weakest prompts to be more effective.
 
 **Your 3 weakest prompts:**
@@ -350,10 +370,14 @@ Let's start with the first one. What were you trying to accomplish with this pro
       role: 'user' as const,
       content: `[CONTEXT] Here are the original prompts I analyzed:
 
-${result.prompts.map((p, i) => `Prompt ${i + 1} (Score: ${p.qualityScore}/100, Intent: ${p.primaryIntent}):
+${result.prompts
+  .map(
+    (p, i) => `Prompt ${i + 1} (Score: ${p.qualityScore}/100, Intent: ${p.primaryIntent}):
 "${p.text}"
 Flags: ${p.flags.length > 0 ? p.flags.join(', ') : 'none'}
-`).join('\n')}
+`
+  )
+  .join('\n')}
 
 Analysis Summary:
 - Overall Quality: ${result.scores.overallQuality}/100
@@ -361,14 +385,14 @@ Analysis Summary:
 - Curiosity: ${result.scores.curiosity}/100
 - Critical Thinking: ${result.scores.criticalThinking}/100
 
-Patterns Detected: ${result.patterns.map(p => p.label).join(', ')}
+Patterns Detected: ${result.patterns.map((p) => p.label).join(', ')}
 
-Now, I want to improve my prompts.`
+Now, I want to improve my prompts.`,
     };
 
     const userMessage: ChatMessage = { role: 'user' as const, content: 'Draft Better' };
     const messagesToSend = [contextMessage, ...messages, userMessage];
-    
+
     setMessages([...messages, userMessage, { role: 'assistant' as const, content: '' }]);
     setIsStreaming(true);
 
@@ -577,7 +601,7 @@ Now, I want to improve my prompts.`
                     </div>
                   );
                 })}
-                
+
                 {/* Action buttons after initial message */}
                 {showActionButtons && messages.length === 1 && (
                   <div className="flex gap-3 justify-center mt-4">
@@ -593,10 +617,10 @@ Now, I want to improve my prompts.`
                       onClick={handleAskOwn}
                       disabled={isStreaming}
                       className="px-6 py-3 rounded-xl text-sm font-semibold transition hover:opacity-90 disabled:opacity-50 border-2"
-                      style={{ 
+                      style={{
                         borderColor: '#4338ca',
                         color: '#4338ca',
-                        backgroundColor: 'white'
+                        backgroundColor: 'white',
                       }}
                     >
                       💬 Ask Own Questions
