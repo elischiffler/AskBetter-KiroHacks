@@ -22,7 +22,7 @@ const supabase =
 
 // Chromium path: CHROMIUM_PATH env var for local dev or custom installs,
 // defaults to system Chromium installed in the Docker image
-const CHROMIUM_PATH = process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser';
+const CHROMIUM_PATH = process.env.CHROMIUM_PATH || '/usr/bin/chromium';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
