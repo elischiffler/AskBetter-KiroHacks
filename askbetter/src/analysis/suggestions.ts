@@ -55,6 +55,23 @@ export function generateSummary(
   const rigorousCount = prompts.filter((p) => p.effortTier === 'rigorous').length;
   const investedCount = prompts.filter((p) => p.effortTier === 'invested').length;
 
+  // Detect creative/casual requests
+  const isCreative = prompts.some((p) =>
+    /\b(write|create|make|generate|compose|draft|design|build|song|poem|story|lyrics|essay|email|letter|script)\b/i.test(
+      p.text
+    )
+  );
+
+  // --- Short conversation summaries (1-4 prompts) ---
+  if (total <= 2) {
+    if (isCreative) {
+      return `This was a short creative request with ${total} prompt${total > 1 ? 's' : ''}. Creative delegation is fine — but you'll get better results by adding specifics: tone, audience, style, length, or examples of what you like. Try iterating on the output with follow-ups like "Make it more emotional" or "Try a completely different approach."`;
+    }
+    if (total === 1) {
+      return `You sent a single prompt with no follow-up. One-shot prompts can work for simple tasks, but you're leaving value on the table. The AI's first response is rarely its best — follow up to refine, challenge, or explore alternatives.`;
+    }
+  }
+
   let body: string;
   let challenge: string;
 
@@ -166,7 +183,63 @@ export function generateSuggestions(
   const total = prompts.length;
   const roles = countByRole(prompts);
 
-  // --- 1. Role-based feedback (most specific, highest priority) ---
+  // --- Short conversation guard ---
+  const isShort = total <= 4;
+
+  // Detect if the conversation is primarily creative/casual
+  const isCreative = prompts.some((p) =>
+    /\b(write|create|make|generate|compose|draft|design|build|craft|song|poem|story|lyrics|essay|email|letter|script|code|draw|paint|illustrate)\b/i.test(
+      p.text
+    )
+  );
+
+  // =====================================================================
+  // SHORT CONVERSATIONS (1-4 prompts): focused, contextual feedback only
+  // =====================================================================
+  if (isShort) {
+    if (total === 1) {
+      if (isCreative) {
+        suggestions.push(
+          'For creative requests, try specifying tone, audience, style, length, or references. "Craft song lyrics in the style of Frank Ocean about heartbreak" gives much better results than a bare request.'
+        );
+        suggestions.push(
+          'After getting the first draft, iterate: "Make the chorus more emotional", "Try a different metaphor in verse 2", or "Give me 3 completely different versions." One follow-up can transform the output.'
+        );
+      } else {
+        suggestions.push(
+          'You sent a single prompt with no follow-up. The AI\'s first response is rarely its best — try asking a follow-up like "Can you explain why?" or "What\'s an alternative approach?"'
+        );
+        suggestions.push(
+          "With just one prompt, there's not much to analyze. Try having a back-and-forth: ask a question, then follow up based on the response. That's where the real value is."
+        );
+      }
+    } else {
+      // 2-4 prompts
+      if (isCreative) {
+        suggestions.push(
+          `You had ${total} prompts in a creative session. To get even better results, try being more specific about what you liked or didn't like in each iteration — "I like the rhythm but the imagery is too generic" is more useful than "try again."`
+        );
+      }
+
+      if (roles.outsourcing >= 2) {
+        suggestions.push(
+          `${roles.outsourcing} of your ${total} prompts were task handoffs. Try adding context to at least one: what you've already tried, what constraints you have, or what "good" looks like to you.`
+        );
+      }
+
+      suggestions.push(
+        `You had ${total} prompts — enough to start a conversation but not enough to go deep. Try extending your next session: ask follow-ups, request alternatives, or challenge the AI's reasoning.`
+      );
+    }
+
+    return suggestions.slice(0, 4);
+  }
+
+  // =====================================================================
+  // LONGER CONVERSATIONS (5+ prompts): full analysis
+  // =====================================================================
+
+  // --- 1. Role-based feedback ---
 
   if (roles.outsourcing >= 2) {
     const worst = prompts
@@ -201,7 +274,7 @@ export function generateSuggestions(
     );
   }
 
-  // --- 3. Missing signals feedback (most common gaps across all prompts) ---
+  // --- 3. Missing signals feedback ---
 
   const missingCounts: Record<string, number> = {};
   for (const p of prompts) {

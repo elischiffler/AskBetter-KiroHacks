@@ -215,14 +215,13 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export function ResultsPage() {
   const location = useLocation();
-  const navigate = useNavigate();
   const result = location.state?.result as AnalysisResult | undefined;
 
-  // Analysis is saved to chat_histories from InputPage/AnalyzePage before navigating here.
+  // Analysis is saved to chat_histories from InputPage before navigating here.
   // No separate save needed — the dashboard reads from the same table.
 
   if (!result) {
-    navigate('/');
+    window.location.href = '/#analyze';
     return null;
   }
 
@@ -409,8 +408,9 @@ export function ResultsPage() {
   useState(() => {
     const generateInitialMessage = () => {
       // Use the summary from the analysis result
-      const initialMessage = result.summary || 'Analysis complete. How can I help you improve your prompts?';
-      
+      const initialMessage =
+        result.summary || 'Analysis complete. How can I help you improve your prompts?';
+
       setMessages([{ role: 'assistant' as const, content: initialMessage }]);
     };
 
@@ -585,7 +585,9 @@ Now, I want to improve my prompts.`,
       <div className="max-w-7xl mx-auto px-4 pt-28 pb-16">
         {/* Back nav */}
         <button
-          onClick={() => navigate('/')}
+          onClick={() => {
+            window.location.href = '/#analyze';
+          }}
           className="flex items-center gap-2 mb-8 text-xs font-bold uppercase tracking-widest transition-all"
           style={{ color: TEXT_MUTED }}
           onMouseEnter={(e) => (e.currentTarget.style.color = TEXT_PRIMARY)}
@@ -600,100 +602,103 @@ Now, I want to improve my prompts.`,
           {/* Chat Analysis (left, smaller) */}
           <div className="lg:col-span-4">
             <Card className="!p-6">
-          {/* Header row */}
-          <div className="mb-6">
-            <SectionLabel>Results</SectionLabel>
-            <h1 className="text-xl font-black uppercase mb-4" style={{ color: TEXT_PRIMARY }}>
-              Chat Analysis
-            </h1>
-            {/* Overall score badge */}
-            <div
-              className="flex flex-col items-center justify-center rounded-xl px-4 py-3"
-              style={{ backgroundColor: 'rgba(124,58,237,0.15)', border: `1px solid ${BORDER}` }}
-            >
-              <span
-                className="text-xs font-semibold uppercase tracking-widest mb-1"
-                style={{ color: TEXT_MUTED }}
-              >
-                Overall
-              </span>
-              <span className="text-3xl font-black" style={{ color: '#a78bfa' }}>
-                {result.scores.overallQuality}
-              </span>
-              <span className="text-xs" style={{ color: TEXT_DIM }}>
-                /100
-              </span>
-            </div>
-          </div>
-
-          {/* Stat chips */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <div
-              className="rounded-xl p-3"
-              style={{ backgroundColor: 'rgba(124,58,237,0.1)', border: `1px solid ${BORDER}` }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <MessageSquare className="w-3 h-3" style={{ color: TEXT_MUTED }} />
-                <span
-                  className="text-xs font-semibold uppercase tracking-wider"
-                  style={{ color: TEXT_DIM }}
+              {/* Header row */}
+              <div className="mb-6">
+                <SectionLabel>Results</SectionLabel>
+                <h1 className="text-xl font-black uppercase mb-4" style={{ color: TEXT_PRIMARY }}>
+                  Chat Analysis
+                </h1>
+                {/* Overall score badge */}
+                <div
+                  className="flex flex-col items-center justify-center rounded-xl px-4 py-3"
+                  style={{
+                    backgroundColor: 'rgba(124,58,237,0.15)',
+                    border: `1px solid ${BORDER}`,
+                  }}
                 >
-                  Messages
-                </span>
+                  <span
+                    className="text-xs font-semibold uppercase tracking-widest mb-1"
+                    style={{ color: TEXT_MUTED }}
+                  >
+                    Overall
+                  </span>
+                  <span className="text-3xl font-black" style={{ color: '#a78bfa' }}>
+                    {result.scores.overallQuality}
+                  </span>
+                  <span className="text-xs" style={{ color: TEXT_DIM }}>
+                    /100
+                  </span>
+                </div>
               </div>
-              <p className="text-2xl font-black" style={{ color: TEXT_PRIMARY }}>
-                {totalMessages}
-              </p>
-            </div>
-            <div
-              className="rounded-xl p-3"
-              style={{ backgroundColor: 'rgba(124,58,237,0.1)', border: `1px solid ${BORDER}` }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <Clock className="w-3 h-3" style={{ color: TEXT_MUTED }} />
-                <span
-                  className="text-xs font-semibold uppercase tracking-wider"
-                  style={{ color: TEXT_DIM }}
+
+              {/* Stat chips */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div
+                  className="rounded-xl p-3"
+                  style={{ backgroundColor: 'rgba(124,58,237,0.1)', border: `1px solid ${BORDER}` }}
                 >
-                  Duration
-                </span>
+                  <div className="flex items-center gap-2 mb-1">
+                    <MessageSquare className="w-3 h-3" style={{ color: TEXT_MUTED }} />
+                    <span
+                      className="text-xs font-semibold uppercase tracking-wider"
+                      style={{ color: TEXT_DIM }}
+                    >
+                      Messages
+                    </span>
+                  </div>
+                  <p className="text-2xl font-black" style={{ color: TEXT_PRIMARY }}>
+                    {totalMessages}
+                  </p>
+                </div>
+                <div
+                  className="rounded-xl p-3"
+                  style={{ backgroundColor: 'rgba(124,58,237,0.1)', border: `1px solid ${BORDER}` }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock className="w-3 h-3" style={{ color: TEXT_MUTED }} />
+                    <span
+                      className="text-xs font-semibold uppercase tracking-wider"
+                      style={{ color: TEXT_DIM }}
+                    >
+                      Duration
+                    </span>
+                  </div>
+                  <p className="text-lg font-black" style={{ color: TEXT_PRIMARY }}>
+                    {duration}
+                  </p>
+                </div>
               </div>
-              <p className="text-lg font-black" style={{ color: TEXT_PRIMARY }}>
-                {duration}
-              </p>
-            </div>
-          </div>
 
-          {/* Category breakdown */}
-          <SectionLabel>Category Breakdown</SectionLabel>
-          <div className="h-px mb-4" style={{ backgroundColor: BORDER }} />
-          {categories.map((c) => (
-            <ProgressBar
-              key={c.name}
-              label={c.name}
-              value={c.pct}
-              max={100}
-              color={c.color}
-              tooltip={c.tooltip}
-            />
-          ))}
+              {/* Category breakdown */}
+              <SectionLabel>Category Breakdown</SectionLabel>
+              <div className="h-px mb-4" style={{ backgroundColor: BORDER }} />
+              {categories.map((c) => (
+                <ProgressBar
+                  key={c.name}
+                  label={c.name}
+                  value={c.pct}
+                  max={100}
+                  color={c.color}
+                  tooltip={c.tooltip}
+                />
+              ))}
 
-          <div className="h-px my-4" style={{ backgroundColor: BORDER }} />
+              <div className="h-px my-4" style={{ backgroundColor: BORDER }} />
 
-          {/* Score breakdown */}
-          <SectionLabel>Score Breakdown</SectionLabel>
-          <div className="h-px mb-4" style={{ backgroundColor: BORDER }} />
-          {scoreItems.map((s) => (
-            <ProgressBar
-              key={s.key}
-              label={s.label}
-              value={s.value}
-              max={100}
-              color={SCORE_COLORS[s.key] ?? '#7c3aed'}
-              suffix="/100"
-              tooltip={s.tooltip}
-            />
-          ))}
+              {/* Score breakdown */}
+              <SectionLabel>Score Breakdown</SectionLabel>
+              <div className="h-px mb-4" style={{ backgroundColor: BORDER }} />
+              {scoreItems.map((s) => (
+                <ProgressBar
+                  key={s.key}
+                  label={s.label}
+                  value={s.value}
+                  max={100}
+                  color={SCORE_COLORS[s.key] ?? '#7c3aed'}
+                  suffix="/100"
+                  tooltip={s.tooltip}
+                />
+              ))}
             </Card>
           </div>
 
@@ -710,118 +715,129 @@ Now, I want to improve my prompts.`,
           >
             {messages.length === 0 ? (
               <div
-                className="h-full flex items-center justify-center text-sm"
-                style={{ color: TEXT_DIM }}
+                className="h-[44vh] overflow-y-auto pr-1 mb-4 rounded-xl p-3"
+                style={{ backgroundColor: 'rgba(15,10,30,0.6)', border: `1px solid ${BORDER}` }}
               >
-                Send a message to start chatting.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {messages.map((m, index) => {
-                  const isUser = m.role === 'user';
-                  return (
-                    <div key={index} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                      <div
-                        className="max-w-[85%] rounded-xl px-4 py-3 text-sm whitespace-pre-wrap"
-                        style={
-                          isUser
-                            ? { backgroundColor: '#7c3aed', color: TEXT_PRIMARY }
-                            : {
-                                backgroundColor: 'rgba(139,92,246,0.1)',
-                                border: `1px solid ${BORDER}`,
-                                color: TEXT_MUTED,
-                              }
-                        }
-                      >
-                        {m.content || (isStreaming && !isUser ? '…' : '')}
-                      </div>
-                    </div>
-                  );
-                })}
+                {messages.length === 0 ? (
+                  <div
+                    className="h-full flex items-center justify-center text-sm"
+                    style={{ color: TEXT_DIM }}
+                  >
+                    Send a message to start chatting.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {messages.map((m, index) => {
+                      const isUser = m.role === 'user';
+                      return (
+                        <div
+                          key={index}
+                          className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className="max-w-[85%] rounded-xl px-4 py-3 text-sm whitespace-pre-wrap"
+                            style={
+                              isUser
+                                ? { backgroundColor: '#7c3aed', color: TEXT_PRIMARY }
+                                : {
+                                    backgroundColor: 'rgba(139,92,246,0.1)',
+                                    border: `1px solid ${BORDER}`,
+                                    color: TEXT_MUTED,
+                                  }
+                            }
+                          >
+                            {m.content || (isStreaming && !isUser ? '…' : '')}
+                          </div>
+                        </div>
+                      );
+                    })}
 
-                {/* Action buttons after initial message */}
-                {showActionButtons && messages.length === 1 && (
-                  <div className="flex gap-3 justify-center mt-4">
-                    <button
-                      onClick={handleDraftBetter}
-                      disabled={isStreaming}
-                      className="px-6 py-3 rounded-xl text-white text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
-                      style={{ backgroundColor: '#7c3aed' }}
-                    >
-                      ✍️ Draft Better?
-                    </button>
-                    <button
-                      onClick={handleAskOwn}
-                      disabled={isStreaming}
-                      className="px-6 py-3 rounded-xl text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
-                      style={{
-                        border: `1px solid ${BORDER}`,
-                        color: TEXT_MUTED,
-                        backgroundColor: 'transparent',
-                      }}
-                    >
-                      💬 Ask Own Questions
-                    </button>
+                    {/* Action buttons after initial message */}
+                    {showActionButtons && messages.length === 1 && (
+                      <div className="flex gap-3 justify-center mt-4">
+                        <button
+                          onClick={handleDraftBetter}
+                          disabled={isStreaming}
+                          className="px-6 py-3 rounded-xl text-white text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
+                          style={{ backgroundColor: '#7c3aed' }}
+                        >
+                          ✍️ Draft Better?
+                        </button>
+                        <button
+                          onClick={handleAskOwn}
+                          disabled={isStreaming}
+                          className="px-6 py-3 rounded-xl text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
+                          style={{
+                            border: `1px solid ${BORDER}`,
+                            color: TEXT_MUTED,
+                            backgroundColor: 'transparent',
+                          }}
+                        >
+                          💬 Ask Own Questions
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
 
-          {chatError && (
-            <p className="text-xs mb-3" style={{ color: '#f87171' }}>
-              {chatError}
-            </p>
-          )}
-
-          {/* Input row */}
-          <div className="flex items-end gap-2">
-            <textarea
-              rows={2}
-              value={input}
-              disabled={isStreaming}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  void sendMessage();
-                }
-              }}
-              placeholder="Type your message…"
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm resize-none focus:outline-none transition"
-              style={{
-                backgroundColor: BG,
-                border: `1px solid ${BORDER}`,
-                color: TEXT_PRIMARY,
-              }}
-              onFocus={(e) => (e.currentTarget.style.border = '1px solid rgba(139,92,246,0.8)')}
-              onBlur={(e) => (e.currentTarget.style.border = `1px solid ${BORDER}`)}
-            />
-            <button
-              onClick={() => void sendMessage()}
-              disabled={isStreaming || !input.trim()}
-              className="h-[52px] px-5 rounded-xl text-sm font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
-              style={{
-                backgroundColor: isStreaming || !input.trim() ? 'rgba(124,58,237,0.2)' : '#7c3aed',
-                color: isStreaming || !input.trim() ? TEXT_DIM : TEXT_PRIMARY,
-                cursor: isStreaming || !input.trim() ? 'not-allowed' : 'pointer',
-                border: `1px solid ${BORDER}`,
-              }}
-              onMouseEnter={(e) => {
-                if (!isStreaming && input.trim()) e.currentTarget.style.backgroundColor = '#6d28d9';
-              }}
-              onMouseLeave={(e) => {
-                if (!isStreaming && input.trim()) e.currentTarget.style.backgroundColor = '#7c3aed';
-              }}
-            >
-              {isStreaming ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
+              {chatError && (
+                <p className="text-xs mb-3" style={{ color: '#f87171' }}>
+                  {chatError}
+                </p>
               )}
-              Send
-            </button>
-          </div>
+
+              {/* Input row */}
+              <div className="flex items-end gap-2">
+                <textarea
+                  rows={2}
+                  value={input}
+                  disabled={isStreaming}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      void sendMessage();
+                    }
+                  }}
+                  placeholder="Type your message…"
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm resize-none focus:outline-none transition"
+                  style={{
+                    backgroundColor: BG,
+                    border: `1px solid ${BORDER}`,
+                    color: TEXT_PRIMARY,
+                  }}
+                  onFocus={(e) => (e.currentTarget.style.border = '1px solid rgba(139,92,246,0.8)')}
+                  onBlur={(e) => (e.currentTarget.style.border = `1px solid ${BORDER}`)}
+                />
+                <button
+                  onClick={() => void sendMessage()}
+                  disabled={isStreaming || !input.trim()}
+                  className="h-[52px] px-5 rounded-xl text-sm font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
+                  style={{
+                    backgroundColor:
+                      isStreaming || !input.trim() ? 'rgba(124,58,237,0.2)' : '#7c3aed',
+                    color: isStreaming || !input.trim() ? TEXT_DIM : TEXT_PRIMARY,
+                    cursor: isStreaming || !input.trim() ? 'not-allowed' : 'pointer',
+                    border: `1px solid ${BORDER}`,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isStreaming && input.trim())
+                      e.currentTarget.style.backgroundColor = '#6d28d9';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isStreaming && input.trim())
+                      e.currentTarget.style.backgroundColor = '#7c3aed';
+                  }}
+                >
+                  {isStreaming ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  Send
+                </button>
+              </div>
             </Card>
 
             {/* Token Usage Card — fits under Live Chat in the right column */}
@@ -919,8 +935,6 @@ Now, I want to improve my prompts.`,
             ))}
           </Card>
         )}
-
-        
       </div>
     </div>
   );

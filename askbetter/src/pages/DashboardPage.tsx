@@ -6,7 +6,8 @@ import { Header } from '../components/Header';
 import { TrendChart } from '../components/TrendChart';
 import { ProgressIndicator } from '../components/ProgressIndicator';
 import { ComparisonCards } from '../components/ComparisonCard';
-import { ArrowLeft, BarChart3, TrendingUp, Target, Award } from 'lucide-react';
+import { PlatformBreakdown } from '../components/PlatformBreakdown';
+import { ArrowLeft, BarChart3, TrendingUp, Target, Award, Layers } from 'lucide-react';
 
 // ── design tokens ─────────────────────────────────────────────────────────────
 const BG = '#0f0a1e';
@@ -102,7 +103,9 @@ export function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
         {/* Back nav */}
         <button
-          onClick={() => navigate('/analyze')}
+          onClick={() => {
+            window.location.href = '/#analyze';
+          }}
           className="flex items-center gap-2 mb-8 text-xs font-bold uppercase tracking-widest transition-all"
           style={{ color: TEXT_MUTED }}
           onMouseEnter={(e) => (e.currentTarget.style.color = TEXT_PRIMARY)}
@@ -150,7 +153,9 @@ export function DashboardPage() {
               Complete your first conversation analysis to start tracking your progress!
             </p>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => {
+                window.location.href = '/#analyze';
+              }}
               className="px-6 py-3 rounded-lg font-medium transition-all"
               style={{ backgroundColor: '#7c3aed', color: TEXT_PRIMARY }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#6d28d9')}
@@ -250,7 +255,24 @@ export function DashboardPage() {
               <TrendChart history={stats.history} />
             </div>
 
-
+            {/* Platform Breakdown */}
+            {Object.keys(stats.platformBreakdown).length > 0 && (
+              <div
+                className="rounded-xl p-6"
+                style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}` }}
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <Layers className="w-6 h-6" style={{ color: '#7c3aed' }} />
+                  <h2 className="text-2xl font-bold" style={{ color: TEXT_PRIMARY }}>
+                    Platforms Used
+                  </h2>
+                </div>
+                <PlatformBreakdown
+                  breakdown={stats.platformBreakdown}
+                  total={stats.totalAnalyses}
+                />
+              </div>
+            )}
           </div>
         )}
       </main>

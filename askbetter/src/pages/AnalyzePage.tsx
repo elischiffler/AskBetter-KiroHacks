@@ -2,21 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link2, Loader2 } from 'lucide-react';
 import { analyzeConversation } from '../analysis/analyzer';
-import { parseConversation } from '../analysis/parser';
-import {
-  isChatGPTShareUrl,
-  getPromptsFromInput,
-  getLinkErrorMessage,
-} from '../analysis/linkParser';
+import { isAIShareUrl, getPromptsFromInput, getLinkErrorMessage } from '../analysis/linkParser';
 import { Header } from '../components/Header';
 import { useAuth } from '../context/AuthContext';
 import { saveAnalysis } from '../lib/chatHistory';
 
 export function AnalyzePage() {
   const [url, setUrl] = useState('');
-  const [text, setText] = useState('');
   const [error, setError] = useState('');
-  const [mode, setMode] = useState<'link' | 'paste'>('link');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -34,38 +27,23 @@ export function AnalyzePage() {
 
   const handleAnalyze = async () => {
     setError('');
-    const input = mode === 'link' ? url.trim() : text.trim();
+    const input = url.trim();
 
     if (!input) {
-      setError(
-        mode === 'link'
-          ? 'Please enter a ChatGPT share link or switch to paste mode.'
-          : 'Please paste a conversation before analyzing.'
-      );
+      setError('Please enter an AI chat share link.');
       return;
     }
 
-    if (mode === 'paste') {
-      const prompts = parseConversation(input);
-      if (prompts.length === 0) {
-        setError('No user messages detected. Try pasting the conversation text directly.');
-        return;
-      }
-      const result = analyzeConversation(prompts);
-      await navigateWithSave(result);
-      return;
-    }
-
-    if (!isChatGPTShareUrl(input)) {
+    if (!isAIShareUrl(input)) {
       setError(
-        "That doesn't look like a ChatGPT share link. It should start with https://chatgpt.com/share/"
+        "That doesn't look like a valid AI chat share link. We support ChatGPT, Claude, Gemini, Grok, and Perplexity."
       );
       return;
     }
 
     try {
       setIsLoading(true);
-      const prompts = await getPromptsFromInput(input);
+      const { prompts } = await getPromptsFromInput(input);
       if (prompts.length === 0) {
         setError('No user messages detected in that conversation.');
         return;
@@ -80,27 +58,43 @@ export function AnalyzePage() {
     }
   };
 
-  const isDisabled = isLoading || (mode === 'link' ? !url.trim() : !text.trim());
+  const isDisabled = isLoading || !url.trim();
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0f0a1e', color: '#f5f3ff' }}>
       <Header />
 
-      <div className="flex justify-center items-start px-4 pt-32 pb-24">
+      <div className="flex justify-center items-center px-4 pt-32 pb-24 min-h-screen">
         <div className="w-full max-w-xl">
           {/* Section label */}
           <p
             className="text-xs font-semibold tracking-widest uppercase mb-3 text-center"
             style={{ color: '#a78bfa' }}
           >
-            Analyze
+            Get Started
           </p>
           <h1
-            className="text-3xl font-black uppercase text-center mb-10"
+            className="text-3xl font-black uppercase text-center mb-4"
             style={{ color: '#f5f3ff' }}
           >
             Analyze Your Chat
           </h1>
+
+          {/* Disclaimer */}
+          {!user && (
+            <p className="text-center text-xs mb-8" style={{ color: '#6b5fa0' }}>
+              <button
+                onClick={() => navigate('/auth')}
+                className="underline underline-offset-2 transition-colors"
+                style={{ color: '#a78bfa' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#f5f3ff')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#a78bfa')}
+              >
+                Sign in or sign up
+              </button>{' '}
+              to track your metrics over time and see your progress.
+            </p>
+          )}
 
           {/* Card */}
           <div
@@ -110,95 +104,43 @@ export function AnalyzePage() {
               border: '1px solid rgba(139,92,246,0.25)',
             }}
           >
-            {/* Mode toggle */}
-            <div className="flex gap-1 mb-6 p-1 rounded-xl" style={{ backgroundColor: '#0f0a1e' }}>
-              {(['link', 'paste'] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => {
-                    setMode(m);
-                    setError('');
-                  }}
-                  className="flex-1 py-2 rounded-lg text-sm font-semibold transition"
-                  style={
-                    mode === m
-                      ? { backgroundColor: '#7c3aed', color: '#f5f3ff' }
-                      : { color: '#a78bfa' }
-                  }
-                >
-                  {m === 'link' ? 'Share Link' : 'Paste Text'}
-                </button>
-              ))}
-            </div>
-
             {/* Input */}
-            {mode === 'link' ? (
-              <div className="mb-4">
-                <label
-                  className="block text-xs font-semibold uppercase tracking-wider mb-2"
-                  style={{ color: '#a78bfa' }}
-                >
-                  ChatGPT Share Link
-                </label>
-                <div className="relative">
-                  <Link2
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
-                    style={{ color: '#7c3aed' }}
-                  />
-                  <input
-                    type="url"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl text-sm focus:outline-none transition"
-                    style={{
-                      backgroundColor: '#0f0a1e',
-                      border: '1px solid rgba(139,92,246,0.3)',
-                      color: '#f5f3ff',
-                    }}
-                    placeholder="https://chatgpt.com/share/..."
-                    value={url}
-                    disabled={isLoading}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      setUrl(e.target.value);
-                      setError('');
-                    }}
-                    onKeyDown={(e: React.KeyboardEvent) =>
-                      e.key === 'Enter' && void handleAnalyze()
-                    }
-                    onFocus={(e) =>
-                      (e.currentTarget.style.border = '1px solid rgba(139,92,246,0.8)')
-                    }
-                    onBlur={(e) =>
-                      (e.currentTarget.style.border = '1px solid rgba(139,92,246,0.3)')
-                    }
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="mb-4">
-                <label
-                  className="block text-xs font-semibold uppercase tracking-wider mb-2"
-                  style={{ color: '#a78bfa' }}
-                >
-                  Conversation Text
-                </label>
-                <textarea
-                  className="w-full px-4 py-3 rounded-xl text-sm resize-none focus:outline-none transition"
+            <div className="mb-4">
+              <label
+                className="block text-xs font-semibold uppercase tracking-wider mb-2"
+                style={{ color: '#a78bfa' }}
+              >
+                AI Chat Share Link
+              </label>
+              <p className="text-xs mb-3" style={{ color: '#6b5fa0' }}>
+                Supports: ChatGPT • Claude • Gemini • Grok • Perplexity
+              </p>
+              <div className="relative">
+                <Link2
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                  style={{ color: '#7c3aed' }}
+                />
+                <input
+                  type="url"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl text-sm placeholder-opacity-40 focus:outline-none transition"
                   style={{
                     backgroundColor: '#0f0a1e',
                     border: '1px solid rgba(139,92,246,0.3)',
                     color: '#f5f3ff',
                   }}
-                  placeholder={`Paste your ChatGPT conversation here...\n\nYou: Write me a Python script...\nChatGPT: Sure! Here's...\nYou: Why does this work?`}
-                  rows={7}
-                  value={text}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
-                    setText(e.target.value);
+                  placeholder="https://chatgpt.com/share/... or other AI chat link"
+                  value={url}
+                  disabled={isLoading}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setUrl(e.target.value);
                     setError('');
                   }}
+                  onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && void handleAnalyze()}
                   onFocus={(e) => (e.currentTarget.style.border = '1px solid rgba(139,92,246,0.8)')}
                   onBlur={(e) => (e.currentTarget.style.border = '1px solid rgba(139,92,246,0.3)')}
                 />
               </div>
-            )}
+            </div>
 
             {error && (
               <p className="text-xs mb-3" style={{ color: '#f87171' }}>
@@ -230,7 +172,7 @@ export function AnalyzePage() {
 
           {/* Footer note */}
           <p className="text-center text-xs mt-6" style={{ color: '#6b5fa0' }}>
-            Analysis runs entirely in your browser.
+            Paste a share link from any supported AI platform
           </p>
         </div>
       </div>

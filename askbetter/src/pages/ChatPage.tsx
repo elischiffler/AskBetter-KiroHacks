@@ -1,10 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, Send, Trash2 } from 'lucide-react';
 import { streamChatReply, type ChatMessage } from '../lib/chatClient';
 
 export function ChatPage() {
-  const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -87,7 +85,9 @@ export function ChatPage() {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => {
+              window.location.href = '/#analyze';
+            }}
             className="flex items-center gap-2 text-sm font-semibold hover:opacity-70 transition"
             style={{ color: '#4338ca' }}
           >

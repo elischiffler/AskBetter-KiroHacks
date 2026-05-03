@@ -2,7 +2,12 @@ import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link2, Loader2 } from 'lucide-react';
 import { analyzeConversation } from '../analysis/analyzer';
-import { isAIShareUrl, getPromptsFromInput, getLinkErrorMessage } from '../analysis/linkParser';
+import {
+  isAIShareUrl,
+  getPromptsFromInput,
+  getLinkErrorMessage,
+  detectPlatform,
+} from '../analysis/linkParser';
 import { Header } from '../components/Header';
 import { useAuth } from '../context/AuthContext';
 import { saveAnalysis } from '../lib/chatHistory';
@@ -48,13 +53,16 @@ export function InputPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const formRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const analyzeRef = useRef<HTMLDivElement>(null);
 
-  const navigateWithSave = async (result: import('../analysis/types').AnalysisResult) => {
+  const navigateWithSave = async (
+    result: import('../analysis/types').AnalysisResult,
+    platform: string = 'unknown'
+  ) => {
     if (user) {
       try {
-        await saveAnalysis(user.id, result);
+        await saveAnalysis(user.id, result, platform);
       } catch {
         // Save failed silently
       }
@@ -77,8 +85,51 @@ export function InputPage() {
     document.head.appendChild(style);
   }, []);
 
-  const scrollToForm = () => {
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Scroll to analyze section if hash is present
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#analyze') {
+        setTimeout(() => {
+          analyzeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    };
+
+    // Check on mount
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Sync URL hash when the analyze section scrolls into / out of view
+  useEffect(() => {
+    const el = analyzeRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          if (window.location.hash !== '#analyze') {
+            window.history.replaceState(null, '', '/#analyze');
+          }
+        } else {
+          if (window.location.hash === '#analyze') {
+            window.history.replaceState(null, '', '/');
+          }
+        }
+      },
+      { threshold: 0.3 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const scrollToAnalyze = () => {
+    window.location.hash = 'analyze';
+    analyzeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const handleAnalyze = async () => {
@@ -92,20 +143,21 @@ export function InputPage() {
 
     if (!isAIShareUrl(input)) {
       setError(
-        "That doesn't look like a valid AI chat share link. We support ChatGPT, Claude, Gemini, Grok, and Perplexity."
+        "That doesn't look like a valid AI chat share link. We support ChatGPT, Gemini, and Perplexity."
       );
       return;
     }
 
     try {
       setIsLoading(true);
-      const prompts = await getPromptsFromInput(input);
+      const { prompts } = await getPromptsFromInput(input);
       if (prompts.length === 0) {
         setError('No user messages detected in that conversation.');
         return;
       }
+      const platform = detectPlatform(input) ?? 'unknown';
       const result = analyzeConversation(prompts);
-      await navigateWithSave(result);
+      await navigateWithSave(result, platform);
     } catch (err: unknown) {
       const code = err instanceof Error ? err.message : 'UNKNOWN';
       setError(getLinkErrorMessage(code));
@@ -117,7 +169,7 @@ export function InputPage() {
   const isDisabled = isLoading || !url.trim();
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0f0a1e', color: '#f5f3ff' }}>
+    <div style={{ backgroundColor: '#0f0a1e', color: '#f5f3ff' }}>
       <Header />
       {/* ------------------------------------------------------------------ */}
       {/* HERO SECTION                                                         */}
@@ -151,7 +203,7 @@ export function InputPage() {
           {/* CTAs */}
           <div className="flex items-center gap-4 flex-wrap">
             <button
-              onClick={scrollToForm}
+              onClick={scrollToAnalyze}
               className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-sm font-bold uppercase tracking-widest transition-all active:scale-95"
               style={{ backgroundColor: '#7c3aed', color: '#f5f3ff' }}
               onMouseEnter={(e) =>
@@ -216,7 +268,11 @@ export function InputPage() {
           <AnimatedGrid />
           {/* Logo centered over the grid, above the vignette */}
           <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-            <img src="/logo.png" alt="Better questions, better answers" className="w-[600px] object-contain" />
+            <img
+              src="/logo.png"
+              alt="Better questions, better answers"
+              className="w-[600px] object-contain"
+            />
           </div>
         </div>
 
@@ -228,11 +284,12 @@ export function InputPage() {
       </section>
 
       {/* ------------------------------------------------------------------ */}
-      {/* INPUT FORM SECTION                                                   */}
+      {/* ANALYZE SECTION                                                      */}
       {/* ------------------------------------------------------------------ */}
       <section
-        ref={formRef}
-        className="flex justify-center items-start px-4 py-24"
+        ref={analyzeRef}
+        id="analyze"
+        className="flex justify-center items-center px-4 py-32 min-h-screen"
         style={{ backgroundColor: '#0f0a1e' }}
       >
         <div className="w-full max-w-xl">
@@ -283,7 +340,7 @@ export function InputPage() {
                 AI Chat Share Link
               </label>
               <p className="text-xs mb-3" style={{ color: '#6b5fa0' }}>
-                Supports: ChatGPT • Claude • Gemini • Grok • Perplexity
+                Supports: ChatGPT • Gemini • Perplexity
               </p>
               <div className="relative">
                 <Link2
@@ -298,7 +355,7 @@ export function InputPage() {
                     border: '1px solid rgba(139,92,246,0.3)',
                     color: '#f5f3ff',
                   }}
-                  placeholder="https://chatgpt.com/share/... or other AI chat link"
+                  placeholder="https://chatgpt.com/share/..."
                   value={url}
                   disabled={isLoading}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
