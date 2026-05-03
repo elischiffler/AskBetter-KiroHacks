@@ -5,6 +5,8 @@ import { InputPage } from './pages/InputPage';
 import { AnalyzePage } from './pages/AnalyzePage';
 import { ResultsPage } from './pages/ResultsPage';
 import { ChatPage } from './pages/ChatPage';
+import { HistoryPage } from './pages/HistoryPage';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 export default function App() {
   return (
@@ -16,6 +18,14 @@ export default function App() {
           <Route path="/analyze" element={<AnalyzePage />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/results" element={<ResultsPage />} />
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <HistoryPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

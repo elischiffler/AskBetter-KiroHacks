@@ -9,6 +9,8 @@ import {
   getLinkErrorMessage,
 } from '../analysis/linkParser';
 import { Header } from '../components/Header';
+import { useAuth } from '../context/AuthContext';
+import { saveAnalysis } from '../lib/chatHistory';
 
 export function AnalyzePage() {
   const [url, setUrl] = useState('');
@@ -17,6 +19,18 @@ export function AnalyzePage() {
   const [mode, setMode] = useState<'link' | 'paste'>('link');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const navigateWithSave = async (result: import('../analysis/types').AnalysisResult) => {
+    if (user) {
+      try {
+        await saveAnalysis(user.id, result);
+      } catch {
+        // Save failed silently — don't block the user from seeing results
+      }
+    }
+    navigate('/results', { state: { result } });
+  };
 
   const handleAnalyze = async () => {
     setError('');
@@ -38,7 +52,7 @@ export function AnalyzePage() {
         return;
       }
       const result = analyzeConversation(prompts);
-      navigate('/results', { state: { result } });
+      await navigateWithSave(result);
       return;
     }
 
@@ -57,7 +71,7 @@ export function AnalyzePage() {
         return;
       }
       const result = analyzeConversation(prompts);
-      navigate('/results', { state: { result } });
+      await navigateWithSave(result);
     } catch (err: unknown) {
       const code = err instanceof Error ? err.message : 'UNKNOWN';
       setError(getLinkErrorMessage(code));
