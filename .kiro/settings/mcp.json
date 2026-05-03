@@ -38,7 +38,11 @@
         "execute_sql",
         "list_projects",
         "list_tables",
-        "apply_migration"
+        "apply_migration",
+        "list_projects",
+        "execute_sql",
+        "execute_sql",
+        "execute_sql"
       ]
     }
   }
