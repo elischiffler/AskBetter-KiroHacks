@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Loader2,
   Send,
+  Info,
 } from 'lucide-react';
 import type { AnalysisResult } from '../analysis/types';
 import { Header } from '../components/Header';
@@ -54,15 +55,43 @@ interface ProgressBarProps {
   max: number;
   color: string;
   suffix?: string;
+  tooltip?: string;
 }
 
-function ProgressBar({ label, value, max, color, suffix }: ProgressBarProps) {
+function ProgressBar({ label, value, max, color, suffix, tooltip }: ProgressBarProps) {
   const pct = Math.round((value / max) * 100);
+  const [showTooltip, setShowTooltip] = useState(false);
+
   return (
     <div className="mb-4">
       <div className="flex justify-between items-center mb-1.5">
-        <span className="text-sm font-medium" style={{ color: TEXT_MUTED }}>
+        <span
+          className="text-sm font-medium flex items-center gap-1.5 relative"
+          style={{ color: TEXT_MUTED }}
+        >
           {label}
+          {tooltip && (
+            <span
+              className="inline-flex cursor-help"
+              onMouseEnter={() => setShowTooltip(true)}
+              onMouseLeave={() => setShowTooltip(false)}
+              onTouchStart={() => setShowTooltip((v) => !v)}
+            >
+              <Info className="w-3.5 h-3.5" style={{ color: TEXT_DIM }} />
+              {showTooltip && (
+                <span
+                  className="absolute left-0 top-full mt-1.5 z-50 w-56 px-3 py-2 rounded-lg text-xs leading-relaxed shadow-lg"
+                  style={{
+                    backgroundColor: '#1e1545',
+                    border: `1px solid ${BORDER}`,
+                    color: TEXT_MUTED,
+                  }}
+                >
+                  {tooltip}
+                </span>
+              )}
+            </span>
+          )}
         </span>
         <span className="text-sm font-bold" style={{ color }}>
           {suffix ? `${value}${suffix}` : `${value}%`}
@@ -215,17 +244,54 @@ export function ResultsPage() {
   const duration = estimateDuration(totalMessages);
 
   const categoryTotal = result.distribution.reduce((s, d) => s + d.value, 0);
+
+  const categoryTooltips: Record<string, string> = {
+    Delegation:
+      'Prompts where you asked AI to do a task — write, fix, build, summarize. Not inherently bad, but bare delegation without context scores low.',
+    Curiosity:
+      "Prompts where you asked why, how, or what-if. These show you're trying to understand, not just get an output.",
+    Collaborative:
+      'Prompts where you thought with AI — brainstorming, comparing options, asking for opinions. Shows partnership over outsourcing.',
+    Verification:
+      'Prompts where you asked AI to check, review, or validate your work. Quality depends on whether you asked what could go wrong.',
+  };
+
   const categories = result.distribution.map((d) => ({
     name: d.name,
     pct: categoryTotal > 0 ? Math.round((d.value / categoryTotal) * 100) : 0,
     color: CATEGORY_COLORS[d.name] ?? d.color,
+    tooltip: categoryTooltips[d.name] ?? '',
   }));
 
   const scoreItems = [
-    { key: 'autonomy', label: 'Autonomy', value: result.scores.autonomy },
-    { key: 'curiosity', label: 'Curiosity', value: result.scores.curiosity },
-    { key: 'criticalThinking', label: 'Critical Thinking', value: result.scores.criticalThinking },
-    { key: 'engagement', label: 'Engagement', value: result.scores.engagement },
+    {
+      key: 'autonomy',
+      label: 'Autonomy',
+      value: result.scores.autonomy,
+      tooltip:
+        'Did you show your own thinking before asking? Higher means you shared attempts, reasoning, or context instead of just offloading tasks.',
+    },
+    {
+      key: 'curiosity',
+      label: 'Curiosity',
+      value: result.scores.curiosity,
+      tooltip:
+        'Did you ask why, how, or what-if? Higher means you explored ideas and asked the AI to explain, not just produce.',
+    },
+    {
+      key: 'criticalThinking',
+      label: 'Critical Thinking',
+      value: result.scores.criticalThinking,
+      tooltip:
+        'Did you challenge answers? Higher means you asked for edge cases, risks, alternatives, or reasoning — not just accepted outputs.',
+    },
+    {
+      key: 'engagement',
+      label: 'Engagement',
+      value: result.scores.engagement,
+      tooltip:
+        'Did you iterate and follow up? Higher means you built on responses, asked follow-ups, and sustained a real conversation.',
+    },
   ];
 
   // Feedback cards — balanced mix of what went well and what to improve.
@@ -559,7 +625,14 @@ Now, I want to improve my prompts.`,
           <SectionLabel>Prompt Category Breakdown</SectionLabel>
           <div className="h-px mb-5" style={{ backgroundColor: BORDER }} />
           {categories.map((c) => (
-            <ProgressBar key={c.name} label={c.name} value={c.pct} max={100} color={c.color} />
+            <ProgressBar
+              key={c.name}
+              label={c.name}
+              value={c.pct}
+              max={100}
+              color={c.color}
+              tooltip={c.tooltip}
+            />
           ))}
 
           <div className="h-px my-6" style={{ backgroundColor: BORDER }} />
@@ -575,6 +648,7 @@ Now, I want to improve my prompts.`,
               max={100}
               color={SCORE_COLORS[s.key] ?? '#7c3aed'}
               suffix="/100"
+              tooltip={s.tooltip}
             />
           ))}
         </Card>
