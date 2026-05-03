@@ -167,12 +167,13 @@ export function scorePromptQuality(
 
   // Baseline — short prompts start lower; evidence is required to earn a higher score
   const isShort = wordCount < 10;
-  let autonomy = isShort ? 30 : 50;
-  let curiosity = isShort ? 30 : 50;
-  let criticalThinking = isShort ? 30 : 50;
-  let specificity = isShort ? 20 : 40;
-  let context = isShort ? 20 : 40;
-  let iteration = index > 0 ? 60 : 30;
+  const isMedium = wordCount >= 10 && wordCount < 20;
+  let autonomy = isShort ? 25 : isMedium ? 35 : 45;
+  let curiosity = isShort ? 25 : isMedium ? 35 : 45;
+  let criticalThinking = isShort ? 25 : isMedium ? 35 : 45;
+  let specificity = isShort ? 15 : isMedium ? 25 : 35;
+  let context = isShort ? 15 : isMedium ? 25 : 35;
+  let iteration = index > 0 ? 50 : 20;
 
   // --- Flag bonuses ---
   if (flags.includes('delegation_with_learning_intent')) {
@@ -256,6 +257,55 @@ export function scorePromptQuality(
   ) {
     specificity -= 10;
     context -= 10;
+  }
+
+  // --- Hard penalties for genuinely low-effort prompts (floor is 0 via clamp) ---
+
+  // No question mark at all — unclear what the user wants
+  if (!text.includes('?')) {
+    curiosity -= 10;
+    specificity -= 5;
+  }
+
+  // Extremely short (1-4 words) with no redeeming flags
+  if (wordCount <= 4 && flags.length === 0) {
+    autonomy -= 15;
+    curiosity -= 15;
+    criticalThinking -= 15;
+    specificity -= 15;
+    context -= 15;
+  }
+
+  // Single-word prompt
+  if (wordCount <= 1) {
+    autonomy -= 20;
+    curiosity -= 20;
+    criticalThinking -= 20;
+    specificity -= 20;
+    context -= 20;
+    iteration -= 15;
+  }
+
+  // Bare delegation with no learning intent and short — pure outsourcing
+  if (
+    intent === 'delegation' &&
+    !flags.includes('delegation_with_learning_intent') &&
+    !flags.includes('shows_prior_attempt') &&
+    !flags.includes('asks_for_reasoning') &&
+    wordCount < 10
+  ) {
+    autonomy -= 15;
+    curiosity -= 10;
+  }
+
+  // No context signals at all on a non-trivial prompt
+  if (
+    wordCount >= 5 &&
+    !lower.split(/\s+/).some((w) => CONTEXT_SIGNALS.some((s) => w.includes(s))) &&
+    !flags.includes('shows_prior_attempt')
+  ) {
+    context -= 10;
+    specificity -= 5;
   }
 
   return {
