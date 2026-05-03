@@ -2,7 +2,9 @@
 
 **Better questions, better answers.**
 
-🔗 [Devpost](https://kiro-hacks-cal-poly.devpost.com/)
+🔗 [Live App](https://ask-better-kiro-hacks.vercel.app/) · [Devpost](https://kiro-hacks-cal-poly.devpost.com/)
+
+**Demo Login:** `eschiffler1122@gmail.com` / `Testing1!`
 
 ## What is AskBetter?
 
