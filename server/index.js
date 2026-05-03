@@ -77,10 +77,20 @@ function validateChatMessages(messages) {
 }
 
 // ---------------------------------------------------------------------------
-// Security: allowlist of permitted hostnames and path prefix
+// Security: allowlist of permitted hostnames and path prefixes
 // ---------------------------------------------------------------------------
-const ALLOWED_HOSTNAMES = new Set(['chatgpt.com', 'chat.openai.com']);
-const REQUIRED_PATH_PREFIX = '/share/';
+const ALLOWED_HOSTNAMES = new Set([
+  'chatgpt.com',
+  'chat.openai.com',
+  'claude.ai',
+  'gemini.google.com',
+  'grok.com',
+  'x.com',
+  'www.perplexity.ai',
+  'perplexity.ai',
+]);
+
+const VALID_PATH_PREFIXES = ['/share/', '/chat/', '/app/', '/search/', '/i/grok/share/'];
 
 function validateShareUrl(rawUrl) {
   let parsed;
@@ -95,11 +105,12 @@ function validateShareUrl(rawUrl) {
   if (!ALLOWED_HOSTNAMES.has(parsed.hostname)) {
     return {
       valid: false,
-      reason: 'Only chatgpt.com and chat.openai.com URLs are allowed.',
+      reason: `Unsupported platform. We support ChatGPT, Claude, Gemini, Grok, and Perplexity.`,
     };
   }
-  if (!parsed.pathname.startsWith(REQUIRED_PATH_PREFIX)) {
-    return { valid: false, reason: 'URL path must start with /share/.' };
+  const hasValidPath = VALID_PATH_PREFIXES.some((prefix) => parsed.pathname.startsWith(prefix));
+  if (!hasValidPath) {
+    return { valid: false, reason: "That doesn't look like a valid share link." };
   }
   return { valid: true, reason: null };
 }

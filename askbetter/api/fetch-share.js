@@ -27,8 +27,8 @@ export default async function handler(req, res) {
       'chat.openai.com',
       'claude.ai',
       'gemini.google.com',
+      'grok.com',
       'x.com',
-      'twitter.com',
       'perplexity.ai',
       'www.perplexity.ai',
     ];
@@ -52,7 +52,8 @@ export default async function handler(req, res) {
     // Fetch the share link
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; AskBetter/1.0)',
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       },
     });
 

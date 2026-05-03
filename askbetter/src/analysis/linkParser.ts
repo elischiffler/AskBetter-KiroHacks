@@ -39,10 +39,7 @@ const PLATFORMS: Record<AIPlatform, PlatformConfig> = {
   },
   grok: {
     name: 'Grok',
-    urlPatterns: [
-      /^https:\/\/x\.com\/i\/grok\/share\//,
-      /^https:\/\/twitter\.com\/i\/grok\/share\//,
-    ],
+    urlPatterns: [/^https:\/\/grok\.com\/share\//, /^https:\/\/x\.com\/i\/grok\/share\//],
     icon: '🚀',
   },
   perplexity: {
