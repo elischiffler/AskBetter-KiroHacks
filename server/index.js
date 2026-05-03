@@ -259,8 +259,18 @@ app.get('/api/fetch-share', async (req, res) => {
       }
 
       if (result.rawText) {
-        console.log(`[fetch-share] Fast fetch got text fallback (${result.rawText.length} chars)`);
-        return res.json({ html: result.rawText });
+        // Only use raw text if it looks like an actual conversation
+        // (contains patterns like "You:", "Human:", etc.)
+        const conversationPattern = /^(you|user|human|me)\s*:/im;
+        if (conversationPattern.test(result.rawText)) {
+          console.log(
+            `[fetch-share] Fast fetch got conversation text (${result.rawText.length} chars)`
+          );
+          return res.json({ html: result.rawText });
+        }
+        console.log(
+          '[fetch-share] Fast fetch got raw text but it does not look like a conversation'
+        );
       }
 
       console.log('[fetch-share] Fast fetch got HTML but no messages, trying Puppeteer...');
@@ -362,9 +372,10 @@ app.get('/api/fetch-share', async (req, res) => {
         } catch {}
       }
 
-      // Strategy 4: Get all visible text as fallback
+      // Strategy 4: Get all visible text as fallback — only if it looks like a conversation
       const body = document.body?.innerText || '';
-      if (body.length > 100) {
+      const looksLikeConversation = /^(you|user|human|me)\s*:/im.test(body);
+      if (body.length > 100 && looksLikeConversation) {
         return { messages: null, strategy: 'body-text', rawText: body };
       }
 
@@ -381,12 +392,16 @@ app.get('/api/fetch-share', async (req, res) => {
     }
 
     if (messages.rawText) {
-      return res.json({ html: messages.rawText });
+      // Only return raw text if it looks like an actual conversation
+      const conversationPattern = /^(you|user|human|me)\s*:/im;
+      if (conversationPattern.test(messages.rawText)) {
+        return res.json({ html: messages.rawText });
+      }
     }
 
     return res.status(502).json({
       error:
-        'Could not extract conversation messages. The link may be private, expired, or the page structure has changed.',
+        'Could not extract conversation messages. The link may be private, expired, or require JavaScript to load. Try a ChatGPT share link for best results.',
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error.';

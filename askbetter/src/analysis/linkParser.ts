@@ -276,7 +276,7 @@ export function getLinkErrorMessage(errorCode: string): string {
       return "We couldn't fetch that shared conversation. The link may be private or expired.";
     case 'EXTRACTION_TOO_SHORT':
     case 'NO_PROMPTS_FOUND':
-      return "We fetched the link but couldn't extract the conversation messages.";
+      return "We fetched the link but couldn't find any user messages. Some platforms require JavaScript to load — ChatGPT share links work best.";
     case 'INVALID_URL':
       return "That doesn't look like a valid AI chat share link. We support ChatGPT, Claude, Gemini, Grok, and Perplexity.";
     default:
