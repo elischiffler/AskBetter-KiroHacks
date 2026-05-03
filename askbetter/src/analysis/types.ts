@@ -1,5 +1,16 @@
 export type PromptIntent = 'delegation' | 'curiosity' | 'collaborative' | 'verification';
 
+export type CognitiveRole =
+  | 'outsourcing'
+  | 'directing'
+  | 'exploring'
+  | 'thinking_aloud'
+  | 'stress_testing'
+  | 'rubber_stamping'
+  | 'iterating';
+
+export type EffortTier = 'low_effort' | 'structured' | 'invested' | 'rigorous';
+
 export interface IntentScores {
   delegation: number;
   curiosity: number;
@@ -24,8 +35,9 @@ export interface AnalyzedPrompt {
   qualityScore: number;
   wordCount: number;
   flags: string[];
-  isPassive: boolean;
-  isActive: boolean;
+  cognitiveRole: CognitiveRole;
+  effortTier: EffortTier;
+  missingSignals: string[];
 }
 
 export interface ConversationScores {
@@ -37,6 +49,13 @@ export interface ConversationScores {
   engagement: number;
   overallQuality: number;
 }
+
+export type ConversationArc =
+  | 'warming_up'
+  | 'fading_out'
+  | 'consistent_explorer'
+  | 'task_then_verify'
+  | 'flat';
 
 export type PatternSeverity = 'positive' | 'warning' | 'neutral';
 
@@ -59,7 +78,6 @@ export interface AnalysisResult {
   patterns: DetectedPattern[];
   summary: string;
   suggestions: string[];
-  passiveExamples: AnalyzedPrompt[];
-  activeExamples: AnalyzedPrompt[];
   distribution: CategoryDistribution[];
+  conversationArc: ConversationArc;
 }

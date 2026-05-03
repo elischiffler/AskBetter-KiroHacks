@@ -68,38 +68,53 @@ function ProgressBar({ label, value, max, color, suffix }: ProgressBarProps) {
 }
 
 interface FeedbackCardProps {
-  type: 'positive' | 'warning';
+  type: 'positive' | 'suggestion' | 'warning';
   title: string;
   description: string;
 }
 
 function FeedbackCard({ type, title, description }: FeedbackCardProps) {
-  const isPositive = type === 'positive';
+  const config = {
+    positive: {
+      bg: '#f0fdf4',
+      border: '#22c55e',
+      icon: CheckCircle,
+      iconColor: '#16a34a',
+      titleColor: '#15803d',
+      textColor: '#166534',
+    },
+    suggestion: {
+      bg: '#fffbeb',
+      border: '#f97316',
+      icon: AlertCircle,
+      iconColor: '#ea580c',
+      titleColor: '#c2410c',
+      textColor: '#9a3412',
+    },
+    warning: {
+      bg: '#fef2f2',
+      border: '#ef4444',
+      icon: AlertCircle,
+      iconColor: '#dc2626',
+      titleColor: '#991b1b',
+      textColor: '#7f1d1d',
+    },
+  }[type];
+
+  const Icon = config.icon;
+
   return (
     <div
       className="rounded-2xl p-5 mb-3 border-l-4"
-      style={{
-        backgroundColor: isPositive ? '#f0fdf4' : '#fffbeb',
-        borderLeftColor: isPositive ? '#22c55e' : '#f97316',
-      }}
+      style={{ backgroundColor: config.bg, borderLeftColor: config.border }}
     >
       <div className="flex items-start gap-3">
-        {isPositive ? (
-          <CheckCircle className="w-5 h-5 mt-0.5 shrink-0" style={{ color: '#16a34a' }} />
-        ) : (
-          <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" style={{ color: '#ea580c' }} />
-        )}
+        <Icon className="w-5 h-5 mt-0.5 shrink-0" style={{ color: config.iconColor }} />
         <div>
-          <p
-            className="font-semibold text-sm mb-1"
-            style={{ color: isPositive ? '#15803d' : '#c2410c' }}
-          >
+          <p className="font-semibold text-sm mb-1" style={{ color: config.titleColor }}>
             {title}
           </p>
-          <p
-            className="text-sm leading-relaxed"
-            style={{ color: isPositive ? '#166534' : '#9a3412' }}
-          >
+          <p className="text-sm leading-relaxed" style={{ color: config.textColor }}>
             {description}
           </p>
         </div>
@@ -139,11 +154,18 @@ export function ResultsPage() {
     { key: 'engagement', label: 'Engagement', value: result.scores.engagement },
   ];
 
-  // Feedback cards: patterns → positive/warning
-  const positivePatterns = result.patterns.filter((p) => p.severity === 'positive');
-  const warningPatterns = result.patterns.filter((p) => p.severity === 'warning');
+  // Feedback cards — balanced mix of what went well and what to improve.
+  // Show up to 2 positive patterns, up to 2 warning patterns, and fill
+  // remaining slots (up to 5 total) with suggestions.
+  const positivePatterns = result.patterns.filter((p) => p.severity === 'positive').slice(0, 2);
+  const warningPatterns = result.patterns.filter((p) => p.severity === 'warning').slice(0, 2);
 
-  // Merge suggestions as warning cards if no warning patterns
+  // Calculate how many suggestion slots remain (target 5 total cards max)
+  const patternCount = positivePatterns.length + warningPatterns.length;
+  const suggestionSlots = Math.max(1, 5 - patternCount);
+  const improvementSuggestions = result.suggestions.slice(0, suggestionSlots);
+
+  // Interleave: positives first (green), then warnings (red), then suggestions (orange)
   const feedbackItems: FeedbackCardProps[] = [
     ...positivePatterns.map((p) => ({
       type: 'positive' as const,
@@ -155,14 +177,11 @@ export function ResultsPage() {
       title: p.label,
       description: p.description,
     })),
-    // Fall back to suggestions if no patterns
-    ...(positivePatterns.length === 0 && warningPatterns.length === 0
-      ? result.suggestions.map((s, i) => ({
-          type: (i % 2 === 0 ? 'positive' : 'warning') as 'positive' | 'warning',
-          title: i === 0 ? 'Suggestion' : 'Improvement',
-          description: s,
-        }))
-      : []),
+    ...improvementSuggestions.map((s) => ({
+      type: 'suggestion' as const,
+      title: 'Suggestion',
+      description: s,
+    })),
   ];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -175,8 +194,8 @@ export function ResultsPage() {
     const generateInitialMessage = () => {
       // Build summary based on analysis
       const overallScore = result.scores.overallQuality;
-      
-      const primaryCategory = result.distribution.reduce((max, d) => 
+
+      const primaryCategory = result.distribution.reduce((max, d) =>
         d.value > max.value ? d : max
       );
 
@@ -204,7 +223,7 @@ export function ResultsPage() {
       const initialMessage = `📊 **Analysis Summary:** Your prompts show ${primaryCategory.name.toLowerCase()} patterns (${Math.round((primaryCategory.value / categoryTotal) * 100)}%) with an overall quality score of ${overallScore}/100.
 
 **Key Issues:**
-${topIssues.map(issue => `• ${issue}`).join('\n')}
+${topIssues.map((issue) => `• ${issue}`).join('\n')}
 
 I can help you rewrite these prompts to be more effective and get better AI responses. Would you like me to guide you?`;
 
@@ -267,11 +286,11 @@ I can help you rewrite these prompts to be more effective and get better AI resp
 
   const handleDraftBetter = async () => {
     setShowActionButtons(false);
-    
+
     // Find worst prompts
     const sortedPrompts = [...result.prompts].sort((a, b) => a.qualityScore - b.qualityScore);
     const worstPrompts = sortedPrompts.slice(0, 3);
-    
+
     const draftMessage = `Great! Let's improve your prompts together. I'll guide you through rewriting your weakest prompts to be more effective.
 
 **Your 3 weakest prompts:**
@@ -339,7 +358,10 @@ Let's start with the first one. What were you trying to accomplish with this pro
             <h1 className="text-2xl font-bold" style={{ color: '#1e1b4b' }}>
               Chat Analysis Results
             </h1>
-            <div className="flex items-center gap-1.5 rounded-full px-4 py-1.5" style={{ backgroundColor: '#f0f4ff' }}>
+            <div
+              className="flex items-center gap-1.5 rounded-full px-4 py-1.5"
+              style={{ backgroundColor: '#f0f4ff' }}
+            >
               <span className="text-sm text-gray-500">Overall</span>
               <span className="text-xl font-bold" style={{ color: '#4338ca' }}>
                 {result.scores.overallQuality}
@@ -448,7 +470,7 @@ Let's start with the first one. What were you trying to accomplish with this pro
                     </div>
                   );
                 })}
-                
+
                 {/* Action buttons after initial message */}
                 {showActionButtons && messages.length === 1 && (
                   <div className="flex gap-3 justify-center mt-4">
@@ -464,10 +486,10 @@ Let's start with the first one. What were you trying to accomplish with this pro
                       onClick={handleAskOwn}
                       disabled={isStreaming}
                       className="px-6 py-3 rounded-xl text-sm font-semibold transition hover:opacity-90 disabled:opacity-50 border-2"
-                      style={{ 
+                      style={{
                         borderColor: '#4338ca',
                         color: '#4338ca',
-                        backgroundColor: 'white'
+                        backgroundColor: 'white',
                       }}
                     >
                       💬 Ask Own Questions

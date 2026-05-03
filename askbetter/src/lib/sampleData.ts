@@ -3,7 +3,7 @@
  * Each sample is designed to exercise a different usage pattern.
  */
 
-// Strong active learning: curiosity, verification, collaborative, delegation-with-learning
+// Strong engaged learning: curiosity, verification, collaborative, delegation-with-learning
 export const SAMPLE_CONVERSATION = `You: Write me a Python script that reads a CSV file and outputs the average of a column.
 
 ChatGPT: Sure! Here's a script that reads a CSV and computes the column average...
@@ -36,7 +36,7 @@ You: Does this code handle connection errors properly? Can you review it?
 
 ChatGPT: Looking at the code, here are a few things to improve...`;
 
-// Passive delegation: bare task requests, no learning intent, no follow-up
+// Pure outsourcing: bare task requests, no learning intent, no follow-up
 export const SAMPLE_PASSIVE_CONVERSATION = `You: Write me a cover letter for a software engineer job at Google.
 
 ChatGPT: Here's a cover letter for you...
