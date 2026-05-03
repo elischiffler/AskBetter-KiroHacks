@@ -86,3 +86,7 @@ npm run dev --prefix askbetter
 | `/chat`      | AI chat page                                |
 
 ## Built at Kiro Hacks @ Cal Poly
+
+## License
+
+[MIT](LICENSE)
