@@ -145,14 +145,14 @@ export function InputPage() {
 
           {/* Subtext */}
           <p className="text-lg md:text-xl font-medium mb-10" style={{ color: '#c4b5fd' }}>
-            Better Questions, Better Answers
+            Better questions, better answers
           </p>
 
           {/* CTAs */}
           <div className="flex items-center gap-4 flex-wrap">
             <button
               onClick={scrollToForm}
-              className="inline-flex items-center gap-2 px-8 py-4 text-sm font-bold uppercase tracking-widest transition-all active:scale-95"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-sm font-bold uppercase tracking-widest transition-all active:scale-95"
               style={{ backgroundColor: '#7c3aed', color: '#f5f3ff' }}
               onMouseEnter={(e) =>
                 ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#6d28d9')
@@ -216,7 +216,7 @@ export function InputPage() {
           <AnimatedGrid />
           {/* Logo centered over the grid, above the vignette */}
           <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-            <img src="/logo.png" alt="AskBetter" className="w-[600px] object-contain" />
+            <img src="/logo.png" alt="Better questions, better answers" className="w-[600px] object-contain" />
           </div>
         </div>
 
