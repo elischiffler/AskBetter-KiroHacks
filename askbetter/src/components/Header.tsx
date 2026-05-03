@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogIn, LogOut, User, History, BarChart3 } from 'lucide-react';
+import { LogIn, LogOut, History, BarChart3 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export function Header() {
@@ -73,13 +73,6 @@ export function Header() {
               <BarChart3 className="w-3.5 h-3.5" />
               Dashboard
             </Link>
-            <span
-              className="hidden sm:flex items-center gap-1.5 text-xs font-medium"
-              style={{ color: '#a78bfa' }}
-            >
-              <User className="w-3.5 h-3.5" />
-              {user.email}
-            </span>
             <button
               onClick={() => void signOut()}
               className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider px-4 py-2 rounded-lg transition-all"

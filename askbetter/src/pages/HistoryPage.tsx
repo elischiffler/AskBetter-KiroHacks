@@ -129,14 +129,12 @@ export function HistoryPage() {
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <p
-                      className="text-sm font-semibold truncate"
-                      style={{ color: TEXT_PRIMARY }}
-                    >
+                    <p className="text-sm font-semibold truncate" style={{ color: TEXT_PRIMARY }}>
                       {row.title}
                     </p>
                     <p className="text-xs mt-1" style={{ color: TEXT_DIM }}>
-                      {row.prompt_count} prompt{row.prompt_count !== 1 ? 's' : ''} · {formatDate(row.created_at)}
+                      {row.prompt_count} prompt{row.prompt_count !== 1 ? 's' : ''} ·{' '}
+                      {formatDate(row.created_at)}
                     </p>
                   </div>
 

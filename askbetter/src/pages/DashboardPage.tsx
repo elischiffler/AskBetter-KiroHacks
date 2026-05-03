@@ -105,9 +105,23 @@ export function DashboardPage() {
           <h1 className="text-4xl font-bold mb-2" style={{ color: TEXT_PRIMARY }}>
             Your Prompting Dashboard
           </h1>
-          <p style={{ color: TEXT_MUTED }}>
-            Track your progress and see how your prompting skills evolve over time
-          </p>
+          <div className="flex items-center gap-3">
+            <p style={{ color: TEXT_MUTED }}>
+              Track your progress and see how your prompting skills evolve over time
+            </p>
+            {user && (
+              <span
+                className="ml-auto text-xs font-medium px-3 py-1 rounded-full"
+                style={{
+                  backgroundColor: 'rgba(124, 58, 237, 0.15)',
+                  border: `1px solid ${BORDER}`,
+                  color: TEXT_MUTED,
+                }}
+              >
+                {user.email}
+              </span>
+            )}
+          </div>
         </div>
 
         {!hasData ? (
