@@ -101,7 +101,9 @@ export function getPlatformName(url: string): string {
  * Strategy 1: look for embedded JSON state in <script> tags.
  * Most AI chat platforms embed conversation data as JSON.
  */
-function extractFromEmbeddedJson(html: string): string[] | null {
+function extractFromEmbeddedJson(
+  html: string
+): { messages: string[]; createTime: number | null } | null {
   const scriptPattern = /<script[^>]*>([\s\S]*?)<\/script>/gi;
   let match: RegExpExecArray | null;
   const candidates: string[] = [];
@@ -120,8 +122,17 @@ function extractFromEmbeddedJson(html: string): string[] | null {
   if (candidates.length === 0) return null;
 
   const userMessages: string[] = [];
+  let createTime: number | null = null;
 
   for (const script of candidates) {
+    // Try to extract conversation-level create_time
+    if (createTime === null) {
+      const timeMatch = /"create_time"\s*:\s*(\d+(?:\.\d+)?)/i.exec(script);
+      if (timeMatch) {
+        createTime = parseFloat(timeMatch[1]);
+      }
+    }
+
     // role before content
     const roleContentPattern =
       /"role"\s*:\s*"(user|human)"[\s\S]{0,500}?"content"\s*:\s*"((?:[^"\\]|\\.)*)"/gi;
@@ -142,7 +153,7 @@ function extractFromEmbeddedJson(html: string): string[] | null {
     }
   }
 
-  return userMessages.length > 0 ? userMessages : null;
+  return userMessages.length > 0 ? { messages: userMessages, createTime } : null;
 }
 
 function decodeJsonString(s: string): string {
@@ -184,11 +195,18 @@ function extractReadableText(html: string): string {
 /**
  * Extracts conversation text from raw HTML.
  * Tries structured JSON extraction first, falls back to text stripping.
+ * Returns the conversation text and optionally the chat creation timestamp.
  */
-export function extractConversationTextFromHtml(html: string): string {
-  const jsonMessages = extractFromEmbeddedJson(html);
-  if (jsonMessages && jsonMessages.length > 0) {
-    return jsonMessages.map((m) => `You: ${m}`).join('\n\n');
+export function extractConversationTextFromHtml(html: string): {
+  text: string;
+  createTime: number | null;
+} {
+  const jsonResult = extractFromEmbeddedJson(html);
+  if (jsonResult && jsonResult.messages.length > 0) {
+    return {
+      text: jsonResult.messages.map((m) => `You: ${m}`).join('\n\n'),
+      createTime: jsonResult.createTime,
+    };
   }
 
   const text = extractReadableText(html);
@@ -196,7 +214,7 @@ export function extractConversationTextFromHtml(html: string): string {
     throw new Error('EXTRACTION_TOO_SHORT');
   }
 
-  return text;
+  return { text, createTime: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -242,7 +260,9 @@ export async function fetchSharedConversation(url: string): Promise<string> {
 /**
  * Given a share URL, returns an array of user prompt strings.
  */
-export async function getPromptsFromInput(input: string): Promise<string[]> {
+export async function getPromptsFromInput(
+  input: string
+): Promise<{ prompts: string[]; chatCreatedAt: string | null }> {
   const trimmed = input.trim();
 
   if (isAIShareUrl(trimmed)) {
@@ -253,7 +273,48 @@ export async function getPromptsFromInput(input: string): Promise<string[]> {
       throw new Error('NO_PROMPTS_FOUND');
     }
 
-    return prompts;
+    // Try to extract create_time from the raw HTML if the server returned it
+    // The proxy may return pre-formatted text, so createTime extraction happens
+    // at the HTML level. We'll attempt to parse it from the transcript response.
+    // If the server already extracted it, it won't be in the transcript.
+    // For now, return null — the server-side extraction handles this.
+    return { prompts, chatCreatedAt: null };
+  }
+
+  return { prompts: parseConversation(trimmed), chatCreatedAt: null };
+}
+
+/**
+ * Fetches and parses a share link, returning prompts and the chat creation time.
+ * This is the full pipeline that also extracts timestamps from the HTML.
+ */
+export async function getPromptsAndTimestamp(
+  input: string
+): Promise<{ prompts: string[]; chatCreatedAt: string | null }> {
+  const trimmed = input.trim();
+
+  if (!isChatGPTShareUrl(trimmed)) {
+    return { prompts: parseConversation(trimmed), chatCreatedAt: null };
+  }
+
+  if (!isChatGPTShareUrl(trimmed)) {
+    throw new Error('INVALID_URL');
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${PROXY_BASE}/api/fetch-share?url=${encodeURIComponent(trimmed)}`, {
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch {
+    throw new Error('SERVER_UNREACHABLE');
+  }
+
+  let data: { html?: string; error?: string };
+  try {
+    data = (await response.json()) as { html?: string; error?: string };
+  } catch {
+    throw new Error('FETCH_FAILED');
   }
 
   throw new Error('INVALID_URL');

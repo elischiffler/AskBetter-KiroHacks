@@ -2,7 +2,12 @@ import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link2, Loader2 } from 'lucide-react';
 import { analyzeConversation } from '../analysis/analyzer';
-import { isAIShareUrl, getPromptsFromInput, getLinkErrorMessage } from '../analysis/linkParser';
+import { parseConversation } from '../analysis/parser';
+import {
+  isChatGPTShareUrl,
+  getPromptsAndTimestamp,
+  getLinkErrorMessage,
+} from '../analysis/linkParser';
 import { Header } from '../components/Header';
 import { useAuth } from '../context/AuthContext';
 import { saveAnalysis } from '../lib/chatHistory';
@@ -99,7 +104,7 @@ export function InputPage() {
 
     try {
       setIsLoading(true);
-      const prompts = await getPromptsFromInput(input);
+      const { prompts } = await getPromptsAndTimestamp(input);
       if (prompts.length === 0) {
         setError('No user messages detected in that conversation.');
         return;
