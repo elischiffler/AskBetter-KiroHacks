@@ -10,7 +10,7 @@ const PROXY_BASE: string = import.meta.env.VITE_PROXY_URL || 'http://localhost:3
 // Supported AI platforms
 // ---------------------------------------------------------------------------
 
-export type AIPlatform = 'chatgpt' | 'claude' | 'gemini' | 'grok' | 'perplexity';
+export type AIPlatform = 'chatgpt' | 'gemini' | 'perplexity';
 
 interface PlatformConfig {
   name: string;
@@ -24,11 +24,6 @@ const PLATFORMS: Record<AIPlatform, PlatformConfig> = {
     urlPatterns: [/^https:\/\/chatgpt\.com\/share\//, /^https:\/\/chat\.openai\.com\/share\//],
     icon: '🤖',
   },
-  claude: {
-    name: 'Claude',
-    urlPatterns: [/^https:\/\/claude\.ai\/share\//, /^https:\/\/claude\.ai\/chat\//],
-    icon: '🧠',
-  },
   gemini: {
     name: 'Gemini',
     urlPatterns: [
@@ -36,11 +31,6 @@ const PLATFORMS: Record<AIPlatform, PlatformConfig> = {
       /^https:\/\/gemini\.google\.com\/app\//,
     ],
     icon: '✨',
-  },
-  grok: {
-    name: 'Grok',
-    urlPatterns: [/^https:\/\/grok\.com\/share\//, /^https:\/\/x\.com\/i\/grok\/share\//],
-    icon: '🚀',
   },
   perplexity: {
     name: 'Perplexity',
@@ -339,7 +329,7 @@ export function getLinkErrorMessage(errorCode: string): string {
     case 'NO_PROMPTS_FOUND':
       return "We fetched the link but couldn't find any user messages. Some platforms require JavaScript to load — ChatGPT share links work best.";
     case 'INVALID_URL':
-      return "That doesn't look like a valid AI chat share link. We support ChatGPT, Claude, Gemini, Grok, and Perplexity.";
+      return "That doesn't look like a valid AI chat share link. We support ChatGPT, Gemini, and Perplexity.";
     default:
       return 'Something went wrong reading that link. Please try again.';
   }

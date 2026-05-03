@@ -108,7 +108,7 @@ export function InputPage() {
 
     if (!isAIShareUrl(input)) {
       setError(
-        "That doesn't look like a valid AI chat share link. We support ChatGPT, Claude, Gemini, Grok, and Perplexity."
+        "That doesn't look like a valid AI chat share link. We support ChatGPT, Gemini, and Perplexity."
       );
       return;
     }
@@ -338,7 +338,7 @@ export function InputPage() {
                   AI Chat Share Link
                 </label>
                 <p className="text-xs mb-3" style={{ color: '#6b5fa0' }}>
-                  Supports: ChatGPT • Claude • Gemini • Grok • Perplexity
+                  Supports: ChatGPT • Gemini • Perplexity
                 </p>
                 <div className="relative">
                   <Link2

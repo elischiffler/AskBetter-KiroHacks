@@ -25,10 +25,7 @@ export default async function handler(req, res) {
     const allowedHosts = [
       'chatgpt.com',
       'chat.openai.com',
-      'claude.ai',
       'gemini.google.com',
-      'grok.com',
-      'x.com',
       'perplexity.ai',
       'www.perplexity.ai',
     ];

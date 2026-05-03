@@ -82,10 +82,7 @@ function validateChatMessages(messages) {
 const ALLOWED_HOSTNAMES = new Set([
   'chatgpt.com',
   'chat.openai.com',
-  'claude.ai',
   'gemini.google.com',
-  'grok.com',
-  'x.com',
   'www.perplexity.ai',
   'perplexity.ai',
 ]);
@@ -325,21 +322,6 @@ app.get('/api/fetch-share', async (req, res) => {
         )
         .catch(() => {});
       await new Promise((resolve) => setTimeout(resolve, 3000));
-    } else if (hostname.includes('claude.ai')) {
-      // Claude may have Cloudflare challenge, then renders messages
-      await new Promise((resolve) => setTimeout(resolve, 8000));
-      await page
-        .waitForSelector(
-          '[class*="human"], [class*="Human"], [data-testid*="human"], .font-user-message',
-          { timeout: 10000 }
-        )
-        .catch(() => {});
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    } else if (hostname.includes('grok.com')) {
-      await page
-        .waitForSelector('[class*="message"], [class*="user"], [class*="turn"]', { timeout: 15000 })
-        .catch(() => {});
-      await new Promise((resolve) => setTimeout(resolve, 5000));
     } else if (hostname.includes('perplexity.ai')) {
       await page
         .waitForSelector('[class*="query"], .whitespace-pre-line, [class*="Question"]', {
@@ -431,50 +413,6 @@ app.get('/api/fetch-share', async (req, res) => {
             }
           });
           if (results.length > 0) return { messages: results, strategy: 'gemini-turns' };
-        }
-      }
-
-      // ── Claude ───────────────────────────────────────────────────────────
-      if (host.includes('claude.ai')) {
-        const claudeSelectors = [
-          '[data-testid="human-turn"]',
-          '[class*="human-turn"]',
-          '.font-user-message',
-          '[class*="HumanMessage"]',
-          '[class*="human-message"]',
-          '[data-is-human="true"]',
-        ];
-
-        for (const selector of claudeSelectors) {
-          const els = document.querySelectorAll(selector);
-          if (els.length > 0) {
-            els.forEach((el) => {
-              const text = el.innerText?.trim();
-              if (text && text.length > 0) results.push(text);
-            });
-            if (results.length > 0) return { messages: results, strategy: `claude:${selector}` };
-          }
-        }
-      }
-
-      // ── Grok ─────────────────────────────────────────────────────────────
-      if (host.includes('grok.com') || host.includes('x.com')) {
-        const grokSelectors = [
-          '[class*="user-message"]',
-          '[class*="UserMessage"]',
-          '[data-role="user"]',
-          '.message.user',
-        ];
-
-        for (const selector of grokSelectors) {
-          const els = document.querySelectorAll(selector);
-          if (els.length > 0) {
-            els.forEach((el) => {
-              const text = el.innerText?.trim();
-              if (text && text.length > 0) results.push(text);
-            });
-            if (results.length > 0) return { messages: results, strategy: `grok:${selector}` };
-          }
         }
       }
 
