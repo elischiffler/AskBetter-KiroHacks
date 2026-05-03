@@ -2,6 +2,9 @@ import { scoreIntents, primaryIntentFrom } from './classifier';
 import { detectFlags, scorePromptQuality, computeQualityScore } from './rubric';
 import { detectPatterns } from './patterns';
 import { generateSummary, generateSuggestions } from './suggestions';
+import { estimateTokens } from './tokenEstimator';
+import { calculateCost } from './costCalculator';
+import { TOKEN_CONFIG } from './tokenConfig';
 import type {
   AnalyzedPrompt,
   AnalysisResult,
@@ -11,6 +14,7 @@ import type {
   CognitiveRole,
   EffortTier,
   PromptIntent,
+  TokenBreakdownEntry,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -319,6 +323,25 @@ export function analyzeConversation(rawPrompts: string[]): AnalysisResult {
   const summary = generateSummary(scores, prompts, conversationArc);
   const suggestions = generateSuggestions(scores, prompts, patterns);
 
+  // Step 7: token estimation
+  let anyFallback = false;
+  const tokenBreakdown: TokenBreakdownEntry[] = prompts.map((p, i) => {
+    const est = estimateTokens(p.text);
+    if (est.fallback) anyFallback = true;
+    return {
+      index: i,
+      tokens: est.tokens,
+      costUsd: calculateCost(est.tokens, TOKEN_CONFIG.pricePerMillion),
+    };
+  });
+
+  const totalPromptTokens = tokenBreakdown.reduce((sum, e) => sum + e.tokens, 0);
+  const estimatedPromptCostUsd = calculateCost(totalPromptTokens, TOKEN_CONFIG.pricePerMillion);
+  const tokenEstimateLabel = TOKEN_CONFIG.label;
+  const tokenEstimateDisclaimer = anyFallback
+    ? TOKEN_CONFIG.fallbackDisclaimer
+    : TOKEN_CONFIG.disclaimer;
+
   return {
     prompts,
     scores,
@@ -327,6 +350,11 @@ export function analyzeConversation(rawPrompts: string[]): AnalysisResult {
     suggestions,
     distribution,
     conversationArc,
+    tokenBreakdown,
+    totalPromptTokens,
+    estimatedPromptCostUsd,
+    tokenEstimateLabel,
+    tokenEstimateDisclaimer,
   };
 }
 
@@ -408,5 +436,10 @@ function emptyResult(): AnalysisResult {
     suggestions: [],
     distribution: [],
     conversationArc: 'flat',
+    tokenBreakdown: [],
+    totalPromptTokens: 0,
+    estimatedPromptCostUsd: 0,
+    tokenEstimateLabel: TOKEN_CONFIG.label,
+    tokenEstimateDisclaimer: TOKEN_CONFIG.disclaimer,
   };
 }

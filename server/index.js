@@ -4,6 +4,11 @@ const express = require('express');
 const cors = require('cors');
 const puppeteer = require('puppeteer-core');
 const { createClient } = require('@supabase/supabase-js');
+const { validateTokenRequest } = require('./validateTokenRequest');
+const { getProviderConfig } = require('./providerRegistry');
+const { countTokensGemini } = require('./adapters/geminiAdapter');
+const { countTokensPerplexity } = require('./adapters/perplexityAdapter');
+const { estimateTokensFromMessages } = require('./adapters/localEstimator');
 
 // ---------------------------------------------------------------------------
 // Supabase client
@@ -373,6 +378,67 @@ app.post('/api/chat/stream', async (req, res) => {
       message,
     });
     return res.end();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/count-tokens
+// Multi-provider token counting endpoint
+// ---------------------------------------------------------------------------
+app.post('/api/count-tokens', async (req, res) => {
+  const validation = validateTokenRequest(req.body);
+  if (!validation.valid) {
+    return res.status(validation.status).json({ error: validation.message });
+  }
+
+  const { provider, model, messages } = req.body;
+
+  // OpenAI: use server-side js-tiktoken directly
+  if (provider === 'openai') {
+    const inputTokens = estimateTokensFromMessages(messages);
+    return res.json({
+      inputTokens,
+      estimationType: 'local_estimate',
+      provider,
+      model,
+    });
+  }
+
+  // Check API key availability
+  const config = getProviderConfig(provider);
+  if (config.apiKeyEnv && !process.env[config.apiKeyEnv]) {
+    return res.status(503).json({
+      error: `${config.apiKeyEnv} is not configured`,
+    });
+  }
+
+  // Dispatch to provider adapter with fallback
+  try {
+    let inputTokens;
+
+    if (provider === 'gemini') {
+      inputTokens = await countTokensGemini(messages, model);
+    } else if (provider === 'perplexity') {
+      const result = await countTokensPerplexity(messages, model);
+      inputTokens = result.inputTokens;
+    }
+
+    return res.json({
+      inputTokens,
+      estimationType: 'provider_count',
+      provider,
+      model,
+    });
+  } catch (err) {
+    // Fallback to local estimation
+    const inputTokens = estimateTokensFromMessages(messages);
+    return res.json({
+      inputTokens,
+      estimationType: 'local_estimate',
+      provider,
+      model,
+      warning: `${provider} API unavailable: ${err.message}. Fell back to local estimation.`,
+    });
   }
 });
 

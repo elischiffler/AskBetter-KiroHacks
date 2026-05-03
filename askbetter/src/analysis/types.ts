@@ -72,6 +72,15 @@ export interface CategoryDistribution {
   color: string;
 }
 
+export interface TokenBreakdownEntry {
+  /** Zero-based index matching the prompt's position in AnalysisResult.prompts */
+  index: number;
+  /** Estimated token count (non-negative integer) */
+  tokens: number;
+  /** Estimated cost in USD at full precision */
+  costUsd: number;
+}
+
 export interface AnalysisResult {
   prompts: AnalyzedPrompt[];
   scores: ConversationScores;
@@ -80,4 +89,9 @@ export interface AnalysisResult {
   suggestions: string[];
   distribution: CategoryDistribution[];
   conversationArc: ConversationArc;
+  tokenBreakdown: TokenBreakdownEntry[];
+  totalPromptTokens: number;
+  estimatedPromptCostUsd: number;
+  tokenEstimateLabel: string;
+  tokenEstimateDisclaimer: string;
 }
