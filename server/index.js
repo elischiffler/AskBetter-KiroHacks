@@ -337,9 +337,9 @@ app.get('/api/fetch-share', async (req, res) => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
     } else if (hostname.includes('grok.com')) {
       await page
-        .waitForSelector('[class*="message"], [class*="user"]', { timeout: 15000 })
+        .waitForSelector('[class*="message"], [class*="user"], [class*="turn"]', { timeout: 15000 })
         .catch(() => {});
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, 5000));
     } else if (hostname.includes('perplexity.ai')) {
       await page
         .waitForSelector('[class*="query"], .whitespace-pre-line, [class*="Question"]', {
@@ -519,6 +519,61 @@ app.get('/api/fetch-share', async (req, res) => {
         }
       }
 
+      // ── Universal fallback: scan all elements for conversation patterns ──
+      // Look for elements whose attributes contain "user", "human", "query"
+      const allEls = document.querySelectorAll('*');
+      const userEls = [];
+      for (const el of allEls) {
+        const attrs = Array.from(el.attributes || []);
+        const attrStr = attrs
+          .map((a) => `${a.name}=${a.value}`)
+          .join(' ')
+          .toLowerCase();
+        const tag = el.tagName.toLowerCase();
+
+        // Skip tiny or huge elements, scripts, styles
+        if (['script', 'style', 'meta', 'link', 'head', 'noscript'].includes(tag)) continue;
+
+        const isUserElement =
+          attrStr.includes('user') ||
+          attrStr.includes('human') ||
+          attrStr.includes('query') ||
+          attrStr.includes('question') ||
+          attrStr.includes('prompt');
+
+        // Exclude elements that are about "assistant" or "model" or "response"
+        const isAssistantElement =
+          attrStr.includes('assistant') ||
+          attrStr.includes('model') ||
+          attrStr.includes('response') ||
+          attrStr.includes('answer') ||
+          attrStr.includes('bot');
+
+        if (isUserElement && !isAssistantElement) {
+          const text = el.innerText?.trim();
+          // Only include if it has meaningful text and isn't a container of other matched elements
+          if (text && text.length > 1 && text.length < 5000) {
+            // Check this isn't a parent of an already-found element
+            const isDuplicate = userEls.some(
+              (prev) => prev.el.contains(el) || el.contains(prev.el)
+            );
+            if (!isDuplicate) {
+              userEls.push({ el, text, attrStr });
+            }
+          }
+        }
+      }
+
+      // Deduplicate: prefer the most specific (deepest) elements
+      const deduped = userEls.filter(
+        ({ el }) => !userEls.some((other) => other.el !== el && other.el.contains(el))
+      );
+
+      if (deduped.length > 0) {
+        deduped.forEach(({ text }) => results.push(text));
+        return { messages: results, strategy: 'universal-attr-scan' };
+      }
+
       return { messages: results, strategy: 'none' };
     }, hostname);
 
@@ -530,6 +585,43 @@ app.get('/api/fetch-share', async (req, res) => {
       const transcript = messages.messages.map((m) => `You: ${m}`).join('\n\n');
       return res.json({ html: transcript });
     }
+
+    // If no messages found, log what the page looks like for debugging
+    const debugInfo = await page.evaluate(() => {
+      const body = document.body;
+      if (!body) return { text: '', elementCount: 0, sample: '' };
+      const text = body.innerText || '';
+      const allEls = document.querySelectorAll('*');
+      // Collect unique class names that contain interesting keywords
+      const interestingClasses = new Set();
+      allEls.forEach((el) => {
+        const cls = el.className;
+        if (typeof cls === 'string' && cls.length > 0) {
+          cls.split(/\s+/).forEach((c) => {
+            const lower = c.toLowerCase();
+            if (
+              lower.includes('message') ||
+              lower.includes('user') ||
+              lower.includes('human') ||
+              lower.includes('turn') ||
+              lower.includes('query') ||
+              lower.includes('chat') ||
+              lower.includes('prompt') ||
+              lower.includes('conversation')
+            ) {
+              interestingClasses.add(c);
+            }
+          });
+        }
+      });
+      return {
+        textLength: text.length,
+        elementCount: allEls.length,
+        textSample: text.substring(0, 500),
+        interestingClasses: Array.from(interestingClasses).slice(0, 30),
+      };
+    });
+    console.log('[fetch-share] Debug — page info:', JSON.stringify(debugInfo, null, 2));
 
     return res.status(502).json({
       error:
