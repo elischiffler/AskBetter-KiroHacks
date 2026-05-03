@@ -1,6 +1,4 @@
 // ── design tokens ─────────────────────────────────────────────────────────────
-const CARD_BG = '#1a1030';
-const BORDER = 'rgba(139, 92, 246, 0.25)';
 const TEXT_PRIMARY = '#f5f3ff';
 const TEXT_MUTED = '#a78bfa';
 

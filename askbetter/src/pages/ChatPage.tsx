@@ -1,10 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, Send, Trash2 } from 'lucide-react';
 import { streamChatReply, type ChatMessage } from '../lib/chatClient';
 
 export function ChatPage() {
-  const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);

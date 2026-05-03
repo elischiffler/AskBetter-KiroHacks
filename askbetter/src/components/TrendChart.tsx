@@ -164,7 +164,7 @@ function CustomTooltip({ active, payload }: any) {
 
       {/* Score breakdown */}
       <div className="space-y-1.5 pt-2 border-t" style={{ borderColor: BORDER }}>
-        {payload.map((entry) => {
+        {payload.map((entry: { dataKey: string; color: string; value: number }) => {
           if (entry.dataKey === 'Overall') return null;
           return (
             <div key={entry.dataKey} className="flex justify-between items-center text-xs">
@@ -265,7 +265,9 @@ export function TrendChart({ history }: TrendChartProps) {
             style={{ outline: 'none' }}
             onMouseMove={(state) => {
               if (state && state.isTooltipActive && state.activeTooltipIndex !== undefined) {
-                setHoveredIndex(state.activeTooltipIndex);
+                setHoveredIndex(
+                  typeof state.activeTooltipIndex === 'number' ? state.activeTooltipIndex : null
+                );
               }
             }}
             onMouseLeave={() => setHoveredIndex(null)}

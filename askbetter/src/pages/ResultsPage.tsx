@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   MessageSquare,
@@ -207,7 +207,6 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export function ResultsPage() {
   const location = useLocation();
-  const navigate = useNavigate();
   const result = location.state?.result as AnalysisResult | undefined;
 
   // Analysis is saved to chat_histories from InputPage before navigating here.
