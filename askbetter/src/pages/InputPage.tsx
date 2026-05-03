@@ -8,6 +8,8 @@ import {
   getPromptsFromInput,
   getLinkErrorMessage,
 } from '../analysis/linkParser';
+import { Header } from '../components/Header';
+import { useAuth } from '../context/AuthContext';
 
 // ---------------------------------------------------------------------------
 // Animated grid component (CSS-only, no canvas)
@@ -53,6 +55,7 @@ export function InputPage() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const formRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
 
   // Inject keyframe animation once
   useEffect(() => {
@@ -125,6 +128,7 @@ export function InputPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0f0a1e', color: '#f5f3ff' }}>
+      <Header />
       {/* ------------------------------------------------------------------ */}
       {/* HERO SECTION                                                         */}
       {/* ------------------------------------------------------------------ */}
@@ -154,15 +158,12 @@ export function InputPage() {
             Better Questions, Better Answers
           </p>
 
-          {/* CTA */}
-          <div>
+          {/* CTAs */}
+          <div className="flex items-center gap-4 flex-wrap">
             <button
               onClick={scrollToForm}
               className="inline-flex items-center gap-2 px-8 py-4 text-sm font-bold uppercase tracking-widest transition-all active:scale-95"
-              style={{
-                backgroundColor: '#7c3aed',
-                color: '#f5f3ff',
-              }}
+              style={{ backgroundColor: '#7c3aed', color: '#f5f3ff' }}
               onMouseEnter={(e) =>
                 ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#6d28d9')
               }
@@ -173,6 +174,50 @@ export function InputPage() {
               Analyze Now
               <span aria-hidden="true">↓</span>
             </button>
+
+            {!user && (
+              <>
+                <button
+                  onClick={() => navigate('/auth')}
+                  className="inline-flex items-center gap-2 px-8 py-4 text-sm font-bold uppercase tracking-widest transition-all active:scale-95"
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '1px solid rgba(139, 92, 246, 0.45)',
+                    color: '#a78bfa',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#7c3aed';
+                    e.currentTarget.style.color = '#f5f3ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.45)';
+                    e.currentTarget.style.color = '#a78bfa';
+                  }}
+                >
+                  Log in
+                </button>
+
+                <button
+                  onClick={() => navigate('/auth?mode=signup')}
+                  className="inline-flex items-center gap-2 px-8 py-4 text-sm font-bold uppercase tracking-widest transition-all active:scale-95"
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '1px solid rgba(139, 92, 246, 0.45)',
+                    color: '#a78bfa',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#7c3aed';
+                    e.currentTarget.style.color = '#f5f3ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.45)';
+                    e.currentTarget.style.color = '#a78bfa';
+                  }}
+                >
+                  Sign up
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -209,11 +254,27 @@ export function InputPage() {
             Get Started
           </p>
           <h2
-            className="text-3xl font-black uppercase text-center mb-10"
+            className="text-3xl font-black uppercase text-center mb-4"
             style={{ color: '#f5f3ff' }}
           >
             Analyze Your Chat
           </h2>
+
+          {/* Disclaimer */}
+          {!user && (
+            <p className="text-center text-xs mb-8" style={{ color: '#6b5fa0' }}>
+              <button
+                onClick={() => navigate('/auth')}
+                className="underline underline-offset-2 transition-colors"
+                style={{ color: '#a78bfa' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#f5f3ff')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#a78bfa')}
+              >
+                Sign in or sign up
+              </button>{' '}
+              to track your metrics over time and see your progress.
+            </p>
+          )}
 
           {/* Card */}
           <div

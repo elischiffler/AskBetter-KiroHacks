@@ -7,10 +7,20 @@ interface DistributionChartProps {
 
 export function DistributionChart({ distribution }: DistributionChartProps) {
   return (
-    <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
-      <h2 className="text-lg font-semibold text-white mb-4">Prompt Type Breakdown</h2>
+    <div
+      className="rounded-2xl p-6"
+      style={{
+        backgroundColor: '#1a1030',
+        border: '1px solid rgba(139, 92, 246, 0.25)',
+      }}
+    >
+      <h2 className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: '#a78bfa' }}>
+        Prompt Type Breakdown
+      </h2>
       {distribution.length === 0 ? (
-        <p className="text-slate-400 text-sm">No data to display.</p>
+        <p className="text-sm" style={{ color: '#6b5fa0' }}>
+          No data to display.
+        </p>
       ) : (
         <ResponsiveContainer width="100%" height={260}>
           <PieChart>
@@ -29,10 +39,10 @@ export function DistributionChart({ distribution }: DistributionChartProps) {
             </Pie>
             <Tooltip
               contentStyle={{
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
+                backgroundColor: '#1a1030',
+                border: '1px solid rgba(139,92,246,0.25)',
                 borderRadius: '8px',
-                color: '#f1f5f9',
+                color: '#f5f3ff',
               }}
               formatter={(value, name) => [
                 `${value} prompt${value !== 1 ? 's' : ''}`,
@@ -41,7 +51,7 @@ export function DistributionChart({ distribution }: DistributionChartProps) {
             />
             <Legend
               formatter={(value) => (
-                <span style={{ color: '#94a3b8', fontSize: '13px' }}>{value}</span>
+                <span style={{ color: '#a78bfa', fontSize: '13px' }}>{value}</span>
               )}
             />
           </PieChart>
