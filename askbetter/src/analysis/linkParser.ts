@@ -4,24 +4,93 @@ import { parseConversation } from './parser';
 // Config — server proxy URL
 // ---------------------------------------------------------------------------
 
-// Vite exposes env vars prefixed with VITE_ via import.meta.env
-// Falls back to localhost:3001 for local development
 const PROXY_BASE: string = import.meta.env.VITE_PROXY_URL || 'http://localhost:3001';
+
+// ---------------------------------------------------------------------------
+// Supported AI platforms
+// ---------------------------------------------------------------------------
+
+export type AIPlatform = 'chatgpt' | 'claude' | 'gemini' | 'grok' | 'perplexity';
+
+interface PlatformConfig {
+  name: string;
+  urlPatterns: RegExp[];
+  icon: string;
+}
+
+const PLATFORMS: Record<AIPlatform, PlatformConfig> = {
+  chatgpt: {
+    name: 'ChatGPT',
+    urlPatterns: [/^https:\/\/chatgpt\.com\/share\//, /^https:\/\/chat\.openai\.com\/share\//],
+    icon: '🤖',
+  },
+  claude: {
+    name: 'Claude',
+    urlPatterns: [/^https:\/\/claude\.ai\/share\//, /^https:\/\/claude\.ai\/chat\//],
+    icon: '🧠',
+  },
+  gemini: {
+    name: 'Gemini',
+    urlPatterns: [
+      /^https:\/\/gemini\.google\.com\/share\//,
+      /^https:\/\/gemini\.google\.com\/app\//,
+    ],
+    icon: '✨',
+  },
+  grok: {
+    name: 'Grok',
+    urlPatterns: [/^https:\/\/grok\.com\/share\//, /^https:\/\/x\.com\/i\/grok\/share\//],
+    icon: '🚀',
+  },
+  perplexity: {
+    name: 'Perplexity',
+    urlPatterns: [
+      /^https:\/\/www\.perplexity\.ai\/search\//,
+      /^https:\/\/perplexity\.ai\/search\//,
+    ],
+    icon: '🔍',
+  },
+};
 
 // ---------------------------------------------------------------------------
 // URL detection
 // ---------------------------------------------------------------------------
 
 /**
- * Returns true if the input is a valid ChatGPT shared conversation URL.
- * Only accepts HTTPS links to chatgpt.com or chat.openai.com with /share/ path.
+ * Detects which AI platform a URL belongs to
+ */
+export function detectPlatform(input: string): AIPlatform | null {
+  const trimmed = input.trim();
+
+  for (const [platform, config] of Object.entries(PLATFORMS)) {
+    if (config.urlPatterns.some((pattern) => pattern.test(trimmed))) {
+      return platform as AIPlatform;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Returns true if the input is a valid AI chat share URL
+ */
+export function isAIShareUrl(input: string): boolean {
+  return detectPlatform(input) !== null;
+}
+
+/**
+ * Legacy function for backward compatibility
  */
 export function isChatGPTShareUrl(input: string): boolean {
-  const trimmed = input.trim();
-  return (
-    trimmed.startsWith('https://chatgpt.com/share/') ||
-    trimmed.startsWith('https://chat.openai.com/share/')
-  );
+  return detectPlatform(input) === 'chatgpt';
+}
+
+/**
+ * Get platform display name
+ */
+export function getPlatformName(url: string): string {
+  const platform = detectPlatform(url);
+  return platform ? PLATFORMS[platform].name : 'AI Chat';
 }
 
 // ---------------------------------------------------------------------------
@@ -30,8 +99,7 @@ export function isChatGPTShareUrl(input: string): boolean {
 
 /**
  * Strategy 1: look for embedded JSON state in <script> tags.
- * ChatGPT shared pages embed conversation data as JSON (Next.js __NEXT_DATA__
- * or similar). We search for message objects with role + content fields.
+ * Most AI chat platforms embed conversation data as JSON.
  */
 function extractFromEmbeddedJson(
   html: string
@@ -150,15 +218,15 @@ export function extractConversationTextFromHtml(html: string): {
 }
 
 // ---------------------------------------------------------------------------
-// Fetch via our Express proxy (no CORS issues)
+// Fetch via our proxy (no CORS issues)
 // ---------------------------------------------------------------------------
 
 /**
- * Fetches a ChatGPT shared conversation via the local Express proxy server.
+ * Fetches a shared conversation via the proxy server.
  * The server handles the actual HTTP request server-side, bypassing CORS.
  */
 export async function fetchSharedConversation(url: string): Promise<string> {
-  if (!isChatGPTShareUrl(url)) {
+  if (!isAIShareUrl(url)) {
     throw new Error('INVALID_URL');
   }
 
@@ -179,12 +247,9 @@ export async function fetchSharedConversation(url: string): Promise<string> {
   }
 
   if (!response.ok || !data.html) {
-    // Surface the server's error message if available
     throw new Error(data.error ? `SERVER_ERROR:${data.error}` : 'FETCH_FAILED');
   }
 
-  // The server returns either a pre-formatted "You: ..." transcript
-  // (from Puppeteer DOM extraction) or raw HTML as fallback.
   return data.html;
 }
 
@@ -193,17 +258,14 @@ export async function fetchSharedConversation(url: string): Promise<string> {
 // ---------------------------------------------------------------------------
 
 /**
- * Given any user input (URL or raw transcript), returns an array of user
- * prompt strings ready to pass to analyzeConversation(), plus the original
- * chat creation timestamp if available (from share links).
+ * Given a share URL, returns an array of user prompt strings.
  */
 export async function getPromptsFromInput(
   input: string
 ): Promise<{ prompts: string[]; chatCreatedAt: string | null }> {
   const trimmed = input.trim();
 
-  if (isChatGPTShareUrl(trimmed)) {
-    // Server returns a pre-formatted "You: ..." transcript from Puppeteer DOM extraction
+  if (isAIShareUrl(trimmed)) {
     const transcript = await fetchSharedConversation(trimmed);
     const prompts = parseConversation(transcript);
 
@@ -255,23 +317,7 @@ export async function getPromptsAndTimestamp(
     throw new Error('FETCH_FAILED');
   }
 
-  if (!response.ok || !data.html) {
-    throw new Error(data.error ? `SERVER_ERROR:${data.error}` : 'FETCH_FAILED');
-  }
-
-  const html = data.html;
-
-  // Try to extract from embedded JSON (includes create_time)
-  const { text, createTime } = extractConversationTextFromHtml(html);
-  const prompts = parseConversation(text);
-
-  if (prompts.length === 0) {
-    throw new Error('NO_PROMPTS_FOUND');
-  }
-
-  const chatCreatedAt = createTime ? new Date(createTime * 1000).toISOString() : null;
-
-  return { prompts, chatCreatedAt };
+  throw new Error('INVALID_URL');
 }
 
 // ---------------------------------------------------------------------------
@@ -281,20 +327,20 @@ export async function getPromptsAndTimestamp(
 export function getLinkErrorMessage(errorCode: string): string {
   if (errorCode.startsWith('SERVER_ERROR:')) {
     const detail = errorCode.replace('SERVER_ERROR:', '');
-    return `Could not read the shared conversation: ${detail} Please open the link, copy the conversation text, and paste it here instead.`;
+    return `Could not read the shared conversation: ${detail}`;
   }
 
   switch (errorCode) {
     case 'SERVER_UNREACHABLE':
-      return "The AskBetter proxy server isn't running. Start it with: cd server && npm start — then try again.";
+      return "The AskBetter proxy server isn't running. Please try again later.";
     case 'FETCH_FAILED':
-      return "We couldn't fetch that shared conversation. The link may be private or expired. Try opening it and pasting the text directly.";
+      return "We couldn't fetch that shared conversation. The link may be private or expired.";
     case 'EXTRACTION_TOO_SHORT':
     case 'NO_PROMPTS_FOUND':
-      return "We fetched the link but couldn't extract the conversation messages. Open the link, copy the conversation text, and paste it here instead.";
+      return "We fetched the link but couldn't find any user messages. Some platforms require JavaScript to load — ChatGPT share links work best.";
     case 'INVALID_URL':
-      return "That doesn't look like a valid ChatGPT share link. Paste the full URL starting with https://chatgpt.com/share/ or paste the conversation transcript directly.";
+      return "That doesn't look like a valid AI chat share link. We support ChatGPT, Claude, Gemini, Grok, and Perplexity.";
     default:
-      return 'Something went wrong reading that link. Please paste the conversation transcript directly instead.';
+      return 'Something went wrong reading that link. Please try again.';
   }
 }

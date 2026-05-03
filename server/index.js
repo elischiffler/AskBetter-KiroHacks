@@ -77,10 +77,20 @@ function validateChatMessages(messages) {
 }
 
 // ---------------------------------------------------------------------------
-// Security: allowlist of permitted hostnames and path prefix
+// Security: allowlist of permitted hostnames and path prefixes
 // ---------------------------------------------------------------------------
-const ALLOWED_HOSTNAMES = new Set(['chatgpt.com', 'chat.openai.com']);
-const REQUIRED_PATH_PREFIX = '/share/';
+const ALLOWED_HOSTNAMES = new Set([
+  'chatgpt.com',
+  'chat.openai.com',
+  'claude.ai',
+  'gemini.google.com',
+  'grok.com',
+  'x.com',
+  'www.perplexity.ai',
+  'perplexity.ai',
+]);
+
+const VALID_PATH_PREFIXES = ['/share/', '/chat/', '/app/', '/search/', '/i/grok/share/'];
 
 function validateShareUrl(rawUrl) {
   let parsed;
@@ -95,11 +105,12 @@ function validateShareUrl(rawUrl) {
   if (!ALLOWED_HOSTNAMES.has(parsed.hostname)) {
     return {
       valid: false,
-      reason: 'Only chatgpt.com and chat.openai.com URLs are allowed.',
+      reason: `Unsupported platform. We support ChatGPT, Claude, Gemini, Grok, and Perplexity.`,
     };
   }
-  if (!parsed.pathname.startsWith(REQUIRED_PATH_PREFIX)) {
-    return { valid: false, reason: 'URL path must start with /share/.' };
+  const hasValidPath = VALID_PATH_PREFIXES.some((prefix) => parsed.pathname.startsWith(prefix));
+  if (!hasValidPath) {
+    return { valid: false, reason: "That doesn't look like a valid share link." };
   }
   return { valid: true, reason: null };
 }
@@ -121,8 +132,94 @@ app.use(
 
 // ---------------------------------------------------------------------------
 // GET /api/fetch-share?url=<encodedUrl>
-// Uses Puppeteer to fully render the ChatGPT page and extract conversation text
+// Strategy 1: Fast HTTP fetch + HTML parsing (works for most platforms)
+// Strategy 2: Puppeteer rendering (fallback for JS-heavy pages)
 // ---------------------------------------------------------------------------
+
+/**
+ * Extract user messages from raw HTML using regex patterns.
+ * Works for pages that embed conversation data in JSON or have readable text.
+ */
+function extractMessagesFromHtml(html) {
+  const userMessages = [];
+
+  // Strategy A: Look for JSON with role/content patterns in script tags
+  const scriptPattern = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+  let match;
+  while ((match = scriptPattern.exec(html)) !== null) {
+    const content = match[1];
+    if (content.includes('"role"') && (content.includes('"user"') || content.includes('"human"'))) {
+      // role before content
+      const rc = /"role"\s*:\s*"(user|human)"[\s\S]{0,500}?"content"\s*:\s*"((?:[^"\\]|\\.)*)"/gi;
+      let m;
+      while ((m = rc.exec(content)) !== null) {
+        const text = m[2]
+          .replace(/\\n/g, '\n')
+          .replace(/\\t/g, ' ')
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\')
+          .trim();
+        if (text.length > 0) userMessages.push(text);
+      }
+
+      // content before role
+      const cr = /"content"\s*:\s*"((?:[^"\\]|\\.)*)"[\s\S]{0,500}?"role"\s*:\s*"(user|human)"/gi;
+      while ((m = cr.exec(content)) !== null) {
+        const text = m[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\t/g, ' ')
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\')
+          .trim();
+        if (text.length > 0 && !userMessages.includes(text)) {
+          userMessages.push(text);
+        }
+      }
+    }
+  }
+
+  if (userMessages.length > 0) {
+    return { messages: userMessages, strategy: 'json-extraction' };
+  }
+
+  // Strategy B: Look for content in JSON arrays with parts
+  const partsPattern = /"parts"\s*:\s*\[\s*"((?:[^"\\]|\\.)*)"/gi;
+  while ((match = partsPattern.exec(html)) !== null) {
+    const text = match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\').trim();
+    if (text.length > 5) userMessages.push(text);
+  }
+
+  if (userMessages.length > 0) {
+    return { messages: userMessages, strategy: 'parts-extraction' };
+  }
+
+  // Strategy C: Strip HTML and return readable text
+  let text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<\/(p|div|li|h[1-6]|tr)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+
+  text = text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join('\n');
+
+  if (text.length > 100) {
+    return { messages: null, strategy: 'text-fallback', rawText: text };
+  }
+
+  return { messages: null, strategy: 'none' };
+}
+
 app.get('/api/fetch-share', async (req, res) => {
   const { url } = req.query;
 
@@ -135,8 +232,59 @@ app.get('/api/fetch-share', async (req, res) => {
     return res.status(400).json({ error: reason });
   }
 
+  // ── Strategy 1: Fast HTTP fetch ──────────────────────────────────────────
+  try {
+    console.log(`[fetch-share] Trying fast HTTP fetch for: ${url}`);
+    const httpResponse = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      signal: AbortSignal.timeout(15000),
+      redirect: 'follow',
+    });
+
+    if (httpResponse.ok) {
+      const html = await httpResponse.text();
+      const result = extractMessagesFromHtml(html);
+
+      if (result.messages && result.messages.length > 0) {
+        console.log(
+          `[fetch-share] Fast fetch success (${result.strategy}): ${result.messages.length} messages`
+        );
+        const transcript = result.messages.map((m) => `You: ${m}`).join('\n\n');
+        return res.json({ html: transcript });
+      }
+
+      if (result.rawText) {
+        // Only use raw text if it looks like an actual conversation
+        // (contains patterns like "You:", "Human:", etc.)
+        const conversationPattern = /^(you|user|human|me)\s*:/im;
+        if (conversationPattern.test(result.rawText)) {
+          console.log(
+            `[fetch-share] Fast fetch got conversation text (${result.rawText.length} chars)`
+          );
+          return res.json({ html: result.rawText });
+        }
+        console.log(
+          '[fetch-share] Fast fetch got raw text but it does not look like a conversation'
+        );
+      }
+
+      console.log('[fetch-share] Fast fetch got HTML but no messages, trying Puppeteer...');
+    } else {
+      console.log(`[fetch-share] Fast fetch failed with status ${httpResponse.status}`);
+    }
+  } catch (err) {
+    console.log(`[fetch-share] Fast fetch error: ${err.message}`);
+  }
+
+  // ── Strategy 2: Puppeteer rendering (fallback) ──────────────────────────
   let browser;
   try {
+    console.log('[fetch-share] Falling back to Puppeteer...');
     browser = await puppeteer.launch({
       executablePath: CHROMIUM_PATH,
       headless: true,
@@ -160,10 +308,11 @@ app.get('/api/fetch-share', async (req, res) => {
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     );
 
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 });
+    // Use domcontentloaded instead of networkidle2 for faster loading
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    // Wait for message elements to appear in the DOM
-    await page.waitForSelector('[data-message-author-role]', { timeout: 10000 }).catch(() => {});
+    // Give the page a few seconds to render dynamic content
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // Extract conversation messages directly from the rendered DOM
     const messages = await page.evaluate(() => {
@@ -182,7 +331,29 @@ app.get('/api/fetch-share', async (req, res) => {
         return { messages: results, strategy: 'data-attribute' };
       }
 
-      // Strategy 2: __NEXT_DATA__ JSON
+      // Strategy 2: Look for common chat UI patterns across platforms
+      const chatSelectors = [
+        '[data-message-author-role="user"]',
+        '.human-message',
+        '.user-message',
+        '[class*="human"]',
+        '[class*="UserMessage"]',
+        '[class*="user-turn"]',
+        '[data-role="user"]',
+      ];
+
+      for (const selector of chatSelectors) {
+        const els = document.querySelectorAll(selector);
+        if (els.length > 0) {
+          els.forEach((el) => {
+            const text = el.innerText?.trim();
+            if (text && text.length > 0) results.push(text);
+          });
+          if (results.length > 0) return { messages: results, strategy: `selector:${selector}` };
+        }
+      }
+
+      // Strategy 3: __NEXT_DATA__ JSON
       const nextDataEl = document.getElementById('__NEXT_DATA__');
       if (nextDataEl) {
         try {
@@ -201,32 +372,40 @@ app.get('/api/fetch-share', async (req, res) => {
         } catch {}
       }
 
-      // Strategy 3: visible text fallback
-      const paras = document.querySelectorAll('p, [class*="message"], [class*="prose"]');
-      paras.forEach((el) => {
-        const text = el.innerText?.trim();
-        if (text && text.length > 10) results.push(text);
-      });
+      // Strategy 4: Get all visible text as fallback — only if it looks like a conversation
+      const body = document.body?.innerText || '';
+      const looksLikeConversation = /^(you|user|human|me)\s*:/im.test(body);
+      if (body.length > 100 && looksLikeConversation) {
+        return { messages: null, strategy: 'body-text', rawText: body };
+      }
 
-      return { messages: results, strategy: 'text-fallback' };
+      return { messages: results, strategy: 'none' };
     });
 
     console.log(
-      `[fetch-share] Strategy: ${messages.strategy}, found ${messages.messages.length} messages`
+      `[fetch-share] Puppeteer strategy: ${messages.strategy}, found ${messages.messages?.length || 0} messages`
     );
 
-    if (!messages.messages || messages.messages.length === 0) {
-      return res.status(502).json({
-        error:
-          'Could not extract conversation messages. The link may be private, expired, or the page structure has changed.',
-      });
+    if (messages.messages && messages.messages.length > 0) {
+      const transcript = messages.messages.map((m) => `You: ${m}`).join('\n\n');
+      return res.json({ html: transcript });
     }
 
-    const transcript = messages.messages.map((m) => `You: ${m}`).join('\n\n');
-    return res.json({ html: transcript });
+    if (messages.rawText) {
+      // Only return raw text if it looks like an actual conversation
+      const conversationPattern = /^(you|user|human|me)\s*:/im;
+      if (conversationPattern.test(messages.rawText)) {
+        return res.json({ html: messages.rawText });
+      }
+    }
+
+    return res.status(502).json({
+      error:
+        'Could not extract conversation messages. The link may be private, expired, or require JavaScript to load. Try a ChatGPT share link for best results.',
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error.';
-    console.error('[fetch-share] Error:', message);
+    console.error('[fetch-share] Puppeteer error:', message);
     return res.status(502).json({
       error: `Could not load the shared conversation: ${message}`,
     });

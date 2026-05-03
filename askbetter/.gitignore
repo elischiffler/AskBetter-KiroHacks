@@ -56,3 +56,4 @@ coverage/
 *.pem
 *.key
 *.cert
+.vercel
