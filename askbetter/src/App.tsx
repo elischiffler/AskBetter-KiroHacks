@@ -6,6 +6,7 @@ import { AnalyzePage } from './pages/AnalyzePage';
 import { ResultsPage } from './pages/ResultsPage';
 import { ChatPage } from './pages/ChatPage';
 import { HistoryPage } from './pages/HistoryPage';
+import { DashboardPage } from './pages/DashboardPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/analyze" element={<AnalyzePage />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/results" element={<ResultsPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route
             path="/history"
             element={
