@@ -1,4 +1,4 @@
-// Vercel serverless function for proxying ChatGPT share links
+// Vercel serverless function for proxying AI chat share links
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -19,21 +19,34 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing url parameter' });
   }
 
-  // Security: only allow HTTPS requests to chatgpt.com or chat.openai.com
+  // Security: only allow HTTPS requests to supported AI platforms
   try {
     const targetUrl = new URL(url);
-    const allowedHosts = ['chatgpt.com', 'chat.openai.com'];
+    const allowedHosts = [
+      'chatgpt.com',
+      'chat.openai.com',
+      'claude.ai',
+      'gemini.google.com',
+      'x.com',
+      'twitter.com',
+      'perplexity.ai',
+      'www.perplexity.ai',
+    ];
 
     if (targetUrl.protocol !== 'https:') {
       return res.status(400).json({ error: 'Only HTTPS URLs are allowed' });
     }
 
     if (!allowedHosts.includes(targetUrl.hostname)) {
-      return res.status(400).json({ error: 'Only chatgpt.com and chat.openai.com are allowed' });
+      return res.status(400).json({ error: 'Unsupported AI platform' });
     }
 
-    if (!targetUrl.pathname.includes('/share/')) {
-      return res.status(400).json({ error: 'Only /share/ paths are allowed' });
+    // Validate path patterns for each platform
+    const validPaths = ['/share/', '/chat/', '/app/', '/search/', '/i/grok/share/'];
+
+    const hasValidPath = validPaths.some((path) => targetUrl.pathname.includes(path));
+    if (!hasValidPath) {
+      return res.status(400).json({ error: 'Invalid share link path' });
     }
 
     // Fetch the share link
