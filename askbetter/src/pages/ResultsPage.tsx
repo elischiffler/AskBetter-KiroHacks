@@ -82,33 +82,60 @@ function ProgressBar({ label, value, max, color, suffix }: ProgressBarProps) {
 }
 
 interface FeedbackCardProps {
-  type: 'positive' | 'warning';
+  type: 'positive' | 'suggestion' | 'warning';
   title: string;
   description: string;
 }
 
 function FeedbackCard({ type, title, description }: FeedbackCardProps) {
-  const isPositive = type === 'positive';
+  const config = {
+    positive: {
+      bg: 'rgba(34, 197, 94, 0.08)',
+      border: 'rgba(34, 197, 94, 0.3)',
+      borderLeft: '#22c55e',
+      icon: CheckCircle,
+      iconColor: '#4ade80',
+      titleColor: '#86efac',
+      textColor: '#bbf7d0',
+    },
+    suggestion: {
+      bg: 'rgba(251, 146, 60, 0.08)',
+      border: 'rgba(251, 146, 60, 0.25)',
+      borderLeft: '#fb923c',
+      icon: AlertCircle,
+      iconColor: '#fb923c',
+      titleColor: '#fdba74',
+      textColor: '#fed7aa',
+    },
+    warning: {
+      bg: 'rgba(239, 68, 68, 0.08)',
+      border: 'rgba(239, 68, 68, 0.25)',
+      borderLeft: '#ef4444',
+      icon: AlertCircle,
+      iconColor: '#f87171',
+      titleColor: '#fca5a5',
+      textColor: '#fecaca',
+    },
+  }[type];
+
+  const Icon = config.icon;
+
   return (
     <div
       className="rounded-xl p-4 mb-3"
       style={{
-        backgroundColor: isPositive ? 'rgba(124, 58, 237, 0.1)' : 'rgba(251, 146, 60, 0.08)',
-        border: `1px solid ${isPositive ? 'rgba(124,58,237,0.3)' : 'rgba(251,146,60,0.25)'}`,
-        borderLeft: `3px solid ${isPositive ? '#7c3aed' : '#fb923c'}`,
+        backgroundColor: config.bg,
+        border: `1px solid ${config.border}`,
+        borderLeft: `3px solid ${config.borderLeft}`,
       }}
     >
       <div className="flex items-start gap-3">
-        {isPositive ? (
-          <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#a78bfa' }} />
-        ) : (
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#fb923c' }} />
-        )}
+        <Icon className="w-4 h-4 mt-0.5 shrink-0" style={{ color: config.iconColor }} />
         <div>
-          <p className="font-semibold text-sm mb-1" style={{ color: TEXT_PRIMARY }}>
+          <p className="font-semibold text-sm mb-1" style={{ color: config.titleColor }}>
             {title}
           </p>
-          <p className="text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
+          <p className="text-sm leading-relaxed" style={{ color: config.textColor }}>
             {description}
           </p>
         </div>
@@ -160,13 +187,22 @@ export function ResultsPage() {
   // Save analysis to database when user is logged in
   useEffect(() => {
     if (result && user) {
-      const passiveCount = result.passiveExamples.length;
-      const activeCount = result.activeExamples.length;
       const promptCount = result.prompts.length;
+      const outsourcingCount = result.prompts.filter(
+        (p) => p.cognitiveRole === 'outsourcing'
+      ).length;
+      const engagedCount = result.prompts.filter(
+        (p) =>
+          p.cognitiveRole === 'exploring' ||
+          p.cognitiveRole === 'thinking_aloud' ||
+          p.cognitiveRole === 'stress_testing'
+      ).length;
 
-      saveAnalysis(user.id, result.scores, promptCount, passiveCount, activeCount).catch((err) => {
-        console.error('Failed to save analysis:', err);
-      });
+      saveAnalysis(user.id, result.scores, promptCount, outsourcingCount, engagedCount).catch(
+        (err) => {
+          console.error('Failed to save analysis:', err);
+        }
+      );
     }
   }, [result, user]);
 
@@ -192,9 +228,18 @@ export function ResultsPage() {
     { key: 'engagement', label: 'Engagement', value: result.scores.engagement },
   ];
 
-  const positivePatterns = result.patterns.filter((p) => p.severity === 'positive');
-  const warningPatterns = result.patterns.filter((p) => p.severity === 'warning');
+  // Feedback cards — balanced mix of what went well and what to improve.
+  // Show up to 2 positive patterns, up to 2 warning patterns, and fill
+  // remaining slots (up to 5 total) with suggestions.
+  const positivePatterns = result.patterns.filter((p) => p.severity === 'positive').slice(0, 2);
+  const warningPatterns = result.patterns.filter((p) => p.severity === 'warning').slice(0, 2);
 
+  // Calculate how many suggestion slots remain (target 5 total cards max)
+  const patternCount = positivePatterns.length + warningPatterns.length;
+  const suggestionSlots = Math.max(1, 5 - patternCount);
+  const improvementSuggestions = result.suggestions.slice(0, suggestionSlots);
+
+  // Order: positives first (green), then warnings (red), then suggestions (orange)
   const feedbackItems: FeedbackCardProps[] = [
     ...positivePatterns.map((p) => ({
       type: 'positive' as const,
@@ -206,13 +251,11 @@ export function ResultsPage() {
       title: p.label,
       description: p.description,
     })),
-    ...(positivePatterns.length === 0 && warningPatterns.length === 0
-      ? result.suggestions.map((s, i) => ({
-          type: (i % 2 === 0 ? 'positive' : 'warning') as 'positive' | 'warning',
-          title: i === 0 ? 'Suggestion' : 'Improvement',
-          description: s,
-        }))
-      : []),
+    ...improvementSuggestions.map((s) => ({
+      type: 'suggestion' as const,
+      title: 'Suggestion',
+      description: s,
+    })),
   ];
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -228,14 +271,12 @@ export function ResultsPage() {
   // Generate initial AI message on mount
   useState(() => {
     const generateInitialMessage = () => {
-      // Build summary based on analysis
       const overallScore = result.scores.overallQuality;
 
       const primaryCategory = result.distribution.reduce((max, d) =>
         d.value > max.value ? d : max
       );
 
-      // Build bullet points from top issues
       const issues: string[] = [];
       if (result.scores.autonomy < 50) {
         issues.push('Heavy reliance on AI without showing your own thinking');
@@ -253,7 +294,6 @@ export function ResultsPage() {
         issues.push('Insufficient background information provided');
       }
 
-      // Take top 3 issues
       const topIssues = issues.slice(0, 3);
 
       const initialMessage = `📊 **Analysis Summary:** Your prompts show ${primaryCategory.name.toLowerCase()} patterns (${Math.round((primaryCategory.value / categoryTotal) * 100)}%) with an overall quality score of ${overallScore}/100.
@@ -275,18 +315,21 @@ I can help you rewrite these prompts to be more effective and get better AI resp
 
     setChatError('');
     setInput('');
-    setShowActionButtons(false); // Hide action buttons once user starts chatting
+    setShowActionButtons(false);
 
-    // Build context message with original prompts
     const contextMessage: ChatMessage = {
       role: 'user' as const,
       content: `[CONTEXT] Here are the original prompts I analyzed:
 
 ${result.prompts
   .map(
-    (p, i) => `Prompt ${i + 1} (Score: ${p.qualityScore}/100, Intent: ${p.primaryIntent}):
+    (
+      p,
+      i
+    ) => `Prompt ${i + 1} (Score: ${p.qualityScore}/100, Intent: ${p.primaryIntent}, Role: ${p.cognitiveRole}, Effort: ${p.effortTier}):
 "${p.text}"
 Flags: ${p.flags.length > 0 ? p.flags.join(', ') : 'none'}
+Missing: ${p.missingSignals.length > 0 ? p.missingSignals.join(', ') : 'none'}
 `
   )
   .join('\n')}
@@ -307,7 +350,6 @@ Now, here's my question:`,
 
     const userMessage: ChatMessage = { role: 'user' as const, content };
 
-    // For the first user message, include context
     const isFirstUserMessage = messages.filter((m) => m.role === 'user').length === 0;
     const messagesToSend = isFirstUserMessage
       ? [contextMessage, ...messages, userMessage]
@@ -354,7 +396,6 @@ Now, here's my question:`,
   const handleDraftBetter = async () => {
     setShowActionButtons(false);
 
-    // Find worst prompts
     const sortedPrompts = [...result.prompts].sort((a, b) => a.qualityScore - b.qualityScore);
     const worstPrompts = sortedPrompts.slice(0, 3);
 
@@ -365,16 +406,19 @@ ${worstPrompts.map((p, i) => `${i + 1}. "${p.text.substring(0, 80)}${p.text.leng
 
 Let's start with the first one. What were you trying to accomplish with this prompt? What context or background information should the AI know?`;
 
-    // Build context message with original prompts
     const contextMessage: ChatMessage = {
       role: 'user' as const,
       content: `[CONTEXT] Here are the original prompts I analyzed:
 
 ${result.prompts
   .map(
-    (p, i) => `Prompt ${i + 1} (Score: ${p.qualityScore}/100, Intent: ${p.primaryIntent}):
+    (
+      p,
+      i
+    ) => `Prompt ${i + 1} (Score: ${p.qualityScore}/100, Intent: ${p.primaryIntent}, Role: ${p.cognitiveRole}, Effort: ${p.effortTier}):
 "${p.text}"
 Flags: ${p.flags.length > 0 ? p.flags.join(', ') : 'none'}
+Missing: ${p.missingSignals.length > 0 ? p.missingSignals.join(', ') : 'none'}
 `
   )
   .join('\n')}
@@ -412,7 +456,6 @@ Now, I want to improve my prompts.`,
         onError: () => {},
       });
     } catch {
-      // Fallback to static message if streaming fails
       setMessages((prev) => {
         const updated = [...prev];
         updated[updated.length - 1] = { role: 'assistant' as const, content: draftMessage };
@@ -425,7 +468,6 @@ Now, I want to improve my prompts.`,
 
   const handleAskOwn = () => {
     setShowActionButtons(false);
-    // Just enable normal chat mode
   };
 
   return (
@@ -609,18 +651,18 @@ Now, I want to improve my prompts.`,
                       onClick={handleDraftBetter}
                       disabled={isStreaming}
                       className="px-6 py-3 rounded-xl text-white text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
-                      style={{ backgroundColor: '#4338ca' }}
+                      style={{ backgroundColor: '#7c3aed' }}
                     >
                       ✍️ Draft Better?
                     </button>
                     <button
                       onClick={handleAskOwn}
                       disabled={isStreaming}
-                      className="px-6 py-3 rounded-xl text-sm font-semibold transition hover:opacity-90 disabled:opacity-50 border-2"
+                      className="px-6 py-3 rounded-xl text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
                       style={{
-                        borderColor: '#4338ca',
-                        color: '#4338ca',
-                        backgroundColor: 'white',
+                        border: `1px solid ${BORDER}`,
+                        color: TEXT_MUTED,
+                        backgroundColor: 'transparent',
                       }}
                     >
                       💬 Ask Own Questions

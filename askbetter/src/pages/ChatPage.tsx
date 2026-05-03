@@ -68,7 +68,7 @@ export function ChatPage() {
 
   const clearConversation = () => {
     if (messages.length === 0) return;
-    
+
     const confirmed = window.confirm('Clear this conversation? This cannot be undone.');
     if (confirmed) {
       setMessages([]);

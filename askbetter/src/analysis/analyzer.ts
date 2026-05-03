@@ -6,7 +6,11 @@ import type {
   AnalyzedPrompt,
   AnalysisResult,
   ConversationScores,
+  ConversationArc,
   CategoryDistribution,
+  CognitiveRole,
+  EffortTier,
+  PromptIntent,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -26,6 +30,221 @@ const CATEGORY_LABELS: Record<string, string> = {
   collaborative: 'Collaborative',
   verification: 'Verification',
 };
+
+// ---------------------------------------------------------------------------
+// Cognitive role classification
+// ---------------------------------------------------------------------------
+
+function classifyCognitiveRole(
+  intent: PromptIntent,
+  flags: string[],
+  qualityScores: { specificity: number; context: number },
+  index: number
+): CognitiveRole {
+  const hasLearningIntent = flags.includes('delegation_with_learning_intent');
+  const hasPriorAttempt = flags.includes('shows_prior_attempt');
+  const asksReasoning = flags.includes('asks_for_reasoning');
+  const asksRisks = flags.includes('asks_for_risk_or_limitations');
+  const asksAlternatives = flags.includes('asks_for_alternatives');
+  const isFollowUp = flags.includes('follow_up_signal');
+  const highSpecificity = qualityScores.specificity >= 60;
+  const highContext = qualityScores.context >= 60;
+
+  // Iterating: follow-up that builds on previous exchange
+  if (index > 0 && isFollowUp) {
+    return 'iterating';
+  }
+
+  // Thinking aloud: collaborative + shows own reasoning
+  if (intent === 'collaborative' && (hasPriorAttempt || hasLearningIntent)) {
+    return 'thinking_aloud';
+  }
+
+  // Stress-testing: verification with depth
+  if (
+    (intent === 'verification' && (asksRisks || asksReasoning)) ||
+    (asksRisks && asksAlternatives)
+  ) {
+    return 'stress_testing';
+  }
+
+  // Rubber-stamping: verification without depth
+  if (intent === 'verification') {
+    return 'rubber_stamping';
+  }
+
+  // Exploring: curiosity-driven
+  if (intent === 'curiosity') {
+    return 'exploring';
+  }
+
+  // Collaborative without prior attempt is still thinking aloud
+  if (intent === 'collaborative') {
+    return 'thinking_aloud';
+  }
+
+  // Directing: delegation with high specificity/context
+  if (intent === 'delegation' && (highSpecificity || highContext || hasLearningIntent)) {
+    return 'directing';
+  }
+
+  // Outsourcing: bare delegation
+  return 'outsourcing';
+}
+
+// ---------------------------------------------------------------------------
+// Effort tier classification
+// ---------------------------------------------------------------------------
+
+function classifyEffortTier(flags: string[], wordCount: number): EffortTier {
+  const hasPriorAttempt = flags.includes('shows_prior_attempt');
+  const asksReasoning = flags.includes('asks_for_reasoning');
+  const asksRisks = flags.includes('asks_for_risk_or_limitations');
+  const asksAlternatives = flags.includes('asks_for_alternatives');
+  const hasLearningIntent = flags.includes('delegation_with_learning_intent');
+  const isBare = flags.includes('bare_delegation_no_context');
+  const isCopyPaste = flags.includes('copy_paste_without_question');
+
+  // Count "invested" signals
+  const investedSignals = [hasPriorAttempt, asksReasoning, asksRisks, asksAlternatives].filter(
+    Boolean
+  ).length;
+
+  // Rigorous: multiple quality signals combined
+  if (investedSignals >= 2) {
+    return 'rigorous';
+  }
+
+  // Invested: shows own thinking or asks for reasoning
+  if (hasPriorAttempt || asksReasoning || asksRisks || asksAlternatives) {
+    return 'invested';
+  }
+
+  // Structured: has learning intent or reasonable length with content
+  if (hasLearningIntent || (wordCount >= 20 && !isCopyPaste)) {
+    return 'structured';
+  }
+
+  // Low-effort: short, bare, or copy-paste without question
+  if (isBare || isCopyPaste || wordCount < 10) {
+    return 'low_effort';
+  }
+
+  return 'structured';
+}
+
+// ---------------------------------------------------------------------------
+// Missing signals detection
+// ---------------------------------------------------------------------------
+
+function detectMissingSignals(
+  text: string,
+  flags: string[],
+  intent: PromptIntent,
+  wordCount: number
+): string[] {
+  const missing: string[] = [];
+
+  // Only suggest what's relevant to the prompt type
+  if (intent === 'delegation' || intent === 'collaborative') {
+    if (!flags.includes('shows_prior_attempt')) {
+      missing.push("Doesn't show what you've already tried or thought");
+    }
+    if (!flags.includes('delegation_with_learning_intent') && intent === 'delegation') {
+      missing.push("Doesn't ask for explanation alongside the task");
+    }
+  }
+
+  if (intent === 'verification') {
+    if (!flags.includes('asks_for_risk_or_limitations')) {
+      missing.push("Doesn't ask what could go wrong or what assumptions are being made");
+    }
+    if (!flags.includes('asks_for_reasoning')) {
+      missing.push("Doesn't ask for reasoning behind the verdict");
+    }
+  }
+
+  if (intent === 'curiosity') {
+    if (!flags.includes('asks_for_alternatives')) {
+      missing.push("Doesn't ask for alternative approaches or perspectives");
+    }
+  }
+
+  // Universal signals
+  if (wordCount < 15 && !text.includes('?')) {
+    missing.push('No question asked — unclear what specific answer you need');
+  }
+
+  // Context/specificity gaps
+  const lower = text.toLowerCase();
+  const hasConstraints =
+    lower.includes('constraint') ||
+    lower.includes('requirement') ||
+    lower.includes('must') ||
+    lower.includes('needs to');
+  const hasAudience =
+    lower.includes('audience') || lower.includes('for a') || lower.includes('for my');
+  const hasFormat =
+    lower.includes('format') || lower.includes('as a list') || lower.includes('in bullet');
+
+  if (!hasConstraints && !hasAudience && !hasFormat && wordCount >= 10) {
+    missing.push('No constraints, audience, or format specified');
+  }
+
+  return missing.slice(0, 3); // Cap at 3 to avoid overwhelming
+}
+
+// ---------------------------------------------------------------------------
+// Conversation arc detection
+// ---------------------------------------------------------------------------
+
+function detectConversationArc(prompts: AnalyzedPrompt[]): ConversationArc {
+  const total = prompts.length;
+  if (total < 3) return 'flat';
+
+  const midpoint = Math.floor(total / 2);
+  const firstHalf = prompts.slice(0, midpoint);
+  const secondHalf = prompts.slice(midpoint);
+
+  const avgQuality = (ps: AnalyzedPrompt[]) =>
+    ps.reduce((sum, p) => sum + p.qualityScore, 0) / ps.length;
+
+  const firstAvg = avgQuality(firstHalf);
+  const secondAvg = avgQuality(secondHalf);
+  const diff = secondAvg - firstAvg;
+
+  // Check for task-then-verify pattern
+  const firstHalfDelegation = firstHalf.filter((p) => p.primaryIntent === 'delegation').length;
+  const secondHalfVerification = secondHalf.filter(
+    (p) => p.primaryIntent === 'verification' || p.primaryIntent === 'curiosity'
+  ).length;
+  if (
+    firstHalfDelegation / firstHalf.length >= 0.6 &&
+    secondHalfVerification / secondHalf.length >= 0.4
+  ) {
+    return 'task_then_verify';
+  }
+
+  // Check for consistent explorer
+  const curiosityCount = prompts.filter(
+    (p) => p.primaryIntent === 'curiosity' || p.primaryIntent === 'collaborative'
+  ).length;
+  if (curiosityCount / total >= 0.5 && Math.abs(diff) < 10) {
+    return 'consistent_explorer';
+  }
+
+  // Warming up: quality increases significantly
+  if (diff >= 12) {
+    return 'warming_up';
+  }
+
+  // Fading out: quality decreases significantly
+  if (diff <= -12) {
+    return 'fading_out';
+  }
+
+  return 'flat';
+}
 
 // ---------------------------------------------------------------------------
 // Public API — signature unchanged from the original lib/analyzer.ts
@@ -51,21 +270,10 @@ export function analyzeConversation(rawPrompts: string[]): AnalysisResult {
     const qualityScore = computeQualityScore(qualityScores);
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
-    // isPassive: delegation + low quality + no learning signals
-    const isPassive =
-      primaryIntent === 'delegation' &&
-      qualityScore < 60 &&
-      !flags.includes('delegation_with_learning_intent') &&
-      !flags.includes('shows_prior_attempt');
-
-    // isActive: non-delegation intent OR any active learning flag
-    const isActive =
-      primaryIntent !== 'delegation' ||
-      flags.includes('delegation_with_learning_intent') ||
-      flags.includes('shows_prior_attempt') ||
-      flags.includes('asks_for_reasoning') ||
-      flags.includes('asks_for_alternatives') ||
-      flags.includes('asks_for_risk_or_limitations');
+    // Cognitive role, effort tier, missing signals
+    const cognitiveRole = classifyCognitiveRole(primaryIntent, flags, qualityScores, index);
+    const effortTier = classifyEffortTier(flags, wordCount);
+    const missingSignals = detectMissingSignals(text, flags, primaryIntent, wordCount);
 
     return {
       text,
@@ -75,12 +283,11 @@ export function analyzeConversation(rawPrompts: string[]): AnalysisResult {
       qualityScore,
       wordCount,
       flags,
-      isPassive,
-      isActive,
+      cognitiveRole,
+      effortTier,
+      missingSignals,
     };
   });
-
-  const total = prompts.length;
 
   // Step 2: aggregate conversation-level scores
   const scores = computeConversationScores(prompts);
@@ -105,13 +312,12 @@ export function analyzeConversation(rawPrompts: string[]): AnalysisResult {
       color: CATEGORY_COLORS[key],
     }));
 
-  // Step 5: pick examples
-  const passiveExamples = prompts.filter((p) => p.isPassive).slice(0, 3);
-  const activeExamples = prompts.filter((p) => p.isActive).slice(0, 3);
+  // Step 5: conversation arc
+  const conversationArc = detectConversationArc(prompts);
 
-  // Step 6: summary and suggestions
-  const summary = generateSummary(scores, prompts);
-  const suggestions = generateSuggestions(scores);
+  // Step 6: summary and suggestions (summary uses arc)
+  const summary = generateSummary(scores, prompts, conversationArc);
+  const suggestions = generateSuggestions(scores, prompts, patterns);
 
   return {
     prompts,
@@ -119,13 +325,9 @@ export function analyzeConversation(rawPrompts: string[]): AnalysisResult {
     patterns,
     summary,
     suggestions,
-    passiveExamples,
-    activeExamples,
     distribution,
+    conversationArc,
   };
-
-  // Suppress unused variable warning for total (used implicitly via prompts.length)
-  void total;
 }
 
 // ---------------------------------------------------------------------------
@@ -150,13 +352,20 @@ function computeConversationScores(prompts: AnalyzedPrompt[]): ConversationScore
   const specificity = avg(prompts.map((p) => p.qualityScores.specificity));
   const context = avg(prompts.map((p) => p.qualityScores.context));
 
-  // Engagement formula
-  const activeRatio = prompts.filter((p) => p.isActive).length / total;
+  // Engagement formula — uses cognitive roles instead of the old binary classification
+  const engagedRoles: Set<string> = new Set([
+    'exploring',
+    'thinking_aloud',
+    'stress_testing',
+    'iterating',
+    'directing',
+  ]);
+  const engagedRatio = prompts.filter((p) => engagedRoles.has(p.cognitiveRole)).length / total;
   const iterationAvg = avg(prompts.map((p) => p.qualityScores.iteration));
   const lengthScore = Math.min(total / 8, 1) * 35;
-  const activeScore = activeRatio * 35;
+  const engagedScore = engagedRatio * 35;
   const iterationScore = iterationAvg * 0.3;
-  const engagement = clamp(Math.round(lengthScore + activeScore + iterationScore));
+  const engagement = clamp(Math.round(lengthScore + engagedScore + iterationScore));
 
   const overallQuality = avg([
     autonomy,
@@ -197,8 +406,7 @@ function emptyResult(): AnalysisResult {
     patterns: [],
     summary: 'No prompts were detected. Try pasting a conversation with clear user messages.',
     suggestions: [],
-    passiveExamples: [],
-    activeExamples: [],
     distribution: [],
+    conversationArc: 'flat',
   };
 }

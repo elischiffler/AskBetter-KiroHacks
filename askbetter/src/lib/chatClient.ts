@@ -47,7 +47,7 @@ export async function streamChatReply(messages: ChatMessage[], handlers: StreamH
       } catch {
         // Failed to parse error response
       }
-      
+
       const message = getErrorMessageForStatus(response.status, errorMessage);
       throw new Error(message);
     }
