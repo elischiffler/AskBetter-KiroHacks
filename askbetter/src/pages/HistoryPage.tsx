@@ -69,7 +69,9 @@ export function HistoryPage() {
         <div className="w-full max-w-2xl">
           {/* Back nav */}
           <button
-            onClick={() => navigate('/analyze')}
+            onClick={() => {
+              window.location.href = '/#analyze';
+            }}
             className="flex items-center gap-2 mb-8 text-xs font-bold uppercase tracking-widest transition-all"
             style={{ color: TEXT_MUTED }}
             onMouseEnter={(e) => (e.currentTarget.style.color = TEXT_PRIMARY)}
@@ -111,7 +113,9 @@ export function HistoryPage() {
                 No analyses yet. Go analyze a chat to get started.
               </p>
               <button
-                onClick={() => navigate('/analyze')}
+                onClick={() => {
+                  window.location.href = '/#analyze';
+                }}
                 className="mt-2 px-6 py-2.5 rounded-xl text-sm font-bold uppercase tracking-widest transition-all active:scale-95"
                 style={{ backgroundColor: '#7c3aed', color: TEXT_PRIMARY }}
               >
@@ -179,7 +183,6 @@ export function HistoryPage() {
                   </div>
                 </div>
               ))}
-
             </div>
           )}
         </div>

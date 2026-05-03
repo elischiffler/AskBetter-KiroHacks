@@ -87,7 +87,9 @@ export function ChatPage() {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => {
+              window.location.href = '/#analyze';
+            }}
             className="flex items-center gap-2 text-sm font-semibold hover:opacity-70 transition"
             style={{ color: '#4338ca' }}
           >

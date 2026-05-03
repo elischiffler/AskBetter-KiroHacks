@@ -102,7 +102,9 @@ export function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
         {/* Back nav */}
         <button
-          onClick={() => navigate('/analyze')}
+          onClick={() => {
+            window.location.href = '/#analyze';
+          }}
           className="flex items-center gap-2 mb-8 text-xs font-bold uppercase tracking-widest transition-all"
           style={{ color: TEXT_MUTED }}
           onMouseEnter={(e) => (e.currentTarget.style.color = TEXT_PRIMARY)}
@@ -150,7 +152,9 @@ export function DashboardPage() {
               Complete your first conversation analysis to start tracking your progress!
             </p>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => {
+                window.location.href = '/#analyze';
+              }}
               className="px-6 py-3 rounded-lg font-medium transition-all"
               style={{ backgroundColor: '#7c3aed', color: TEXT_PRIMARY }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#6d28d9')}
@@ -249,8 +253,6 @@ export function DashboardPage() {
               </h2>
               <TrendChart history={stats.history} />
             </div>
-
-
           </div>
         )}
       </main>

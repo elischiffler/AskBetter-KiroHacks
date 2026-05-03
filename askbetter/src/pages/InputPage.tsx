@@ -48,8 +48,8 @@ export function InputPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const formRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const analyzeRef = useRef<HTMLDivElement>(null);
 
   const navigateWithSave = async (result: import('../analysis/types').AnalysisResult) => {
     if (user) {
@@ -77,8 +77,51 @@ export function InputPage() {
     document.head.appendChild(style);
   }, []);
 
-  const scrollToForm = () => {
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Scroll to analyze section if hash is present
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#analyze') {
+        setTimeout(() => {
+          analyzeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    };
+
+    // Check on mount
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Sync URL hash when the analyze section scrolls into / out of view
+  useEffect(() => {
+    const el = analyzeRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          if (window.location.hash !== '#analyze') {
+            window.history.replaceState(null, '', '/#analyze');
+          }
+        } else {
+          if (window.location.hash === '#analyze') {
+            window.history.replaceState(null, '', '/');
+          }
+        }
+      },
+      { threshold: 0.3 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const scrollToAnalyze = () => {
+    window.location.hash = 'analyze';
+    analyzeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const handleAnalyze = async () => {
@@ -117,7 +160,7 @@ export function InputPage() {
   const isDisabled = isLoading || !url.trim();
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0f0a1e', color: '#f5f3ff' }}>
+    <div style={{ backgroundColor: '#0f0a1e', color: '#f5f3ff' }}>
       <Header />
       {/* ------------------------------------------------------------------ */}
       {/* HERO SECTION                                                         */}
@@ -151,7 +194,7 @@ export function InputPage() {
           {/* CTAs */}
           <div className="flex items-center gap-4 flex-wrap">
             <button
-              onClick={scrollToForm}
+              onClick={scrollToAnalyze}
               className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-sm font-bold uppercase tracking-widest transition-all active:scale-95"
               style={{ backgroundColor: '#7c3aed', color: '#f5f3ff' }}
               onMouseEnter={(e) =>
@@ -232,11 +275,12 @@ export function InputPage() {
       </section>
 
       {/* ------------------------------------------------------------------ */}
-      {/* INPUT FORM SECTION                                                   */}
+      {/* ANALYZE SECTION                                                      */}
       {/* ------------------------------------------------------------------ */}
       <section
-        ref={formRef}
-        className="flex justify-center items-start px-4 py-24"
+        ref={analyzeRef}
+        id="analyze"
+        className="flex justify-center items-center px-4 py-32 min-h-screen"
         style={{ backgroundColor: '#0f0a1e' }}
       >
         <div className="w-full max-w-xl">

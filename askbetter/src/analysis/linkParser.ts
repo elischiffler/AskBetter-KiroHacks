@@ -283,11 +283,7 @@ export async function getPromptsAndTimestamp(
 ): Promise<{ prompts: string[]; chatCreatedAt: string | null }> {
   const trimmed = input.trim();
 
-  if (!isChatGPTShareUrl(trimmed)) {
-    return { prompts: parseConversation(trimmed), chatCreatedAt: null };
-  }
-
-  if (!isChatGPTShareUrl(trimmed)) {
+  if (!isAIShareUrl(trimmed)) {
     throw new Error('INVALID_URL');
   }
 
@@ -307,7 +303,20 @@ export async function getPromptsAndTimestamp(
     throw new Error('FETCH_FAILED');
   }
 
-  throw new Error('INVALID_URL');
+  if (!response.ok || !data.html) {
+    throw new Error(data.error ? `SERVER_ERROR:${data.error}` : 'FETCH_FAILED');
+  }
+
+  const { text, createTime } = extractConversationTextFromHtml(data.html);
+  const prompts = parseConversation(text);
+
+  if (prompts.length === 0) {
+    throw new Error('NO_PROMPTS_FOUND');
+  }
+
+  const chatCreatedAt = createTime ? new Date(createTime * 1000).toISOString() : null;
+
+  return { prompts, chatCreatedAt };
 }
 
 // ---------------------------------------------------------------------------
