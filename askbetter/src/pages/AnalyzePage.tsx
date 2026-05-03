@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link2, Loader2 } from 'lucide-react';
 import { analyzeConversation } from '../analysis/analyzer';
-import { isAIShareUrl, getPromptsFromInput, getLinkErrorMessage } from '../analysis/linkParser';
+import { isAIShareUrl, getPromptsFromInput, getLinkErrorMessage, detectPlatform } from '../analysis/linkParser';
 import { Header } from '../components/Header';
 import { useAuth } from '../context/AuthContext';
 import { saveAnalysis } from '../lib/chatHistory';
@@ -14,7 +14,7 @@ export function AnalyzePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const navigateWithSave = async (result: import('../analysis/types').AnalysisResult) => {
+  const navigateWithSave = async (result: import('../analysis/types').AnalysisResult, detectedPlatform?: string | null) => {
     if (user) {
       try {
         await saveAnalysis(user.id, result);
@@ -22,7 +22,7 @@ export function AnalyzePage() {
         // Save failed silently — don't block the user from seeing results
       }
     }
-    navigate('/results', { state: { result } });
+    navigate('/results', { state: { result, detectedPlatform } });
   };
 
   const handleAnalyze = async () => {
@@ -49,7 +49,8 @@ export function AnalyzePage() {
         return;
       }
       const result = analyzeConversation(prompts);
-      await navigateWithSave(result);
+      const platform = detectPlatform(input);
+      await navigateWithSave(result, platform);
     } catch (err: unknown) {
       const code = err instanceof Error ? err.message : 'UNKNOWN';
       setError(getLinkErrorMessage(code));

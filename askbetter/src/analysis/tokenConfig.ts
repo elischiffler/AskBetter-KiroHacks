@@ -62,3 +62,17 @@ export interface NormalizedTokenResponse {
   model: string;
   warning?: string;
 }
+
+/** Map detected AI platform to the corresponding token provider */
+export function platformToProvider(platform: string | null | undefined): TokenProvider {
+  switch (platform) {
+    case 'chatgpt':
+      return 'openai';
+    case 'gemini':
+      return 'gemini';
+    case 'perplexity':
+      return 'perplexity';
+    default:
+      return 'openai';
+  }
+}
