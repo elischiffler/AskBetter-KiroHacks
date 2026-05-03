@@ -8,6 +8,13 @@ import { ProgressIndicator } from '../components/ProgressIndicator';
 import { ComparisonCards } from '../components/ComparisonCard';
 import { BarChart3, TrendingUp, Target, Award } from 'lucide-react';
 
+// ── design tokens ─────────────────────────────────────────────────────────────
+const BG = '#0f0a1e';
+const CARD_BG = '#1a1030';
+const BORDER = 'rgba(139, 92, 246, 0.25)';
+const TEXT_PRIMARY = '#f5f3ff';
+const TEXT_MUTED = '#a78bfa';
+
 export function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -44,12 +51,15 @@ export function DashboardPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+      <div className="min-h-screen" style={{ backgroundColor: BG }}>
         <Header />
         <div className="flex items-center justify-center h-[calc(100vh-80px)] pt-20">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading your dashboard...</p>
+            <div
+              className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+              style={{ borderColor: '#7c3aed' }}
+            ></div>
+            <p style={{ color: TEXT_MUTED }}>Loading your dashboard...</p>
           </div>
         </div>
       </div>
@@ -58,14 +68,19 @@ export function DashboardPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+      <div className="min-h-screen" style={{ backgroundColor: BG }}>
         <Header />
         <div className="flex items-center justify-center h-[calc(100vh-80px)] pt-20">
           <div className="text-center">
-            <p className="text-red-600 mb-4">{error}</p>
+            <p className="mb-4" style={{ color: '#ef4444' }}>
+              {error}
+            </p>
             <button
               onClick={loadDashboardData}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              className="px-4 py-2 rounded-lg font-medium transition-all"
+              style={{ backgroundColor: '#7c3aed', color: TEXT_PRIMARY }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#6d28d9')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#7c3aed')}
             >
               Retry
             </button>
@@ -82,28 +97,38 @@ export function DashboardPage() {
   const hasData = stats.totalAnalyses > 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <div className="min-h-screen" style={{ backgroundColor: BG, color: TEXT_PRIMARY }}>
       <Header />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Your Prompting Dashboard</h1>
-          <p className="text-gray-600">
+          <h1 className="text-4xl font-bold mb-2" style={{ color: TEXT_PRIMARY }}>
+            Your Prompting Dashboard
+          </h1>
+          <p style={{ color: TEXT_MUTED }}>
             Track your progress and see how your prompting skills evolve over time
           </p>
         </div>
 
         {!hasData ? (
           /* Empty State */
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-            <BarChart3 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">No Data Yet</h2>
-            <p className="text-gray-600 mb-6">
+          <div
+            className="rounded-xl p-12 text-center"
+            style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}` }}
+          >
+            <BarChart3 className="w-16 h-16 mx-auto mb-4" style={{ color: TEXT_MUTED }} />
+            <h2 className="text-2xl font-semibold mb-2" style={{ color: TEXT_PRIMARY }}>
+              No Data Yet
+            </h2>
+            <p className="mb-6" style={{ color: TEXT_MUTED }}>
               Complete your first conversation analysis to start tracking your progress!
             </p>
             <button
               onClick={() => navigate('/')}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+              className="px-6 py-3 rounded-lg font-medium transition-all"
+              style={{ backgroundColor: '#7c3aed', color: TEXT_PRIMARY }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#6d28d9')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#7c3aed')}
             >
               Analyze a Conversation
             </button>
@@ -119,41 +144,69 @@ export function DashboardPage() {
 
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div
+                className="rounded-xl p-6"
+                style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}` }}
+              >
                 <div className="flex items-center gap-3 mb-2">
-                  <Target className="w-6 h-6 text-purple-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Overall Quality</h3>
+                  <Target className="w-6 h-6" style={{ color: '#7c3aed' }} />
+                  <h3 className="text-lg font-semibold" style={{ color: TEXT_PRIMARY }}>
+                    Overall Quality
+                  </h3>
                 </div>
-                <div className="text-4xl font-bold text-purple-600 mb-1">
+                <div className="text-4xl font-bold mb-1" style={{ color: '#7c3aed' }}>
                   {Math.round(stats.averageScores.overallQuality)}
                 </div>
-                <p className="text-sm text-gray-600">Average across all analyses</p>
+                <p className="text-sm" style={{ color: TEXT_MUTED }}>
+                  Average across all analyses
+                </p>
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div
+                className="rounded-xl p-6"
+                style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}` }}
+              >
                 <div className="flex items-center gap-3 mb-2">
-                  <TrendingUp className="w-6 h-6 text-blue-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Recent Score</h3>
+                  <TrendingUp className="w-6 h-6" style={{ color: '#3b82f6' }} />
+                  <h3 className="text-lg font-semibold" style={{ color: TEXT_PRIMARY }}>
+                    Recent Score
+                  </h3>
                 </div>
-                <div className="text-4xl font-bold text-blue-600 mb-1">
+                <div className="text-4xl font-bold mb-1" style={{ color: '#3b82f6' }}>
                   {stats.recentScores ? Math.round(stats.recentScores.overallQuality) : '-'}
                 </div>
-                <p className="text-sm text-gray-600">Your latest analysis</p>
+                <p className="text-sm" style={{ color: TEXT_MUTED }}>
+                  Your latest analysis
+                </p>
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div
+                className="rounded-xl p-6"
+                style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}` }}
+              >
                 <div className="flex items-center gap-3 mb-2">
-                  <Award className="w-6 h-6 text-green-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Total Analyses</h3>
+                  <Award className="w-6 h-6" style={{ color: '#10b981' }} />
+                  <h3 className="text-lg font-semibold" style={{ color: TEXT_PRIMARY }}>
+                    Total Analyses
+                  </h3>
                 </div>
-                <div className="text-4xl font-bold text-green-600 mb-1">{stats.totalAnalyses}</div>
-                <p className="text-sm text-gray-600">Conversations analyzed</p>
+                <div className="text-4xl font-bold mb-1" style={{ color: '#10b981' }}>
+                  {stats.totalAnalyses}
+                </div>
+                <p className="text-sm" style={{ color: TEXT_MUTED }}>
+                  Conversations analyzed
+                </p>
               </div>
             </div>
 
             {/* Score Comparisons */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Score Breakdown</h2>
+            <div
+              className="rounded-xl p-6"
+              style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}` }}
+            >
+              <h2 className="text-2xl font-bold mb-6" style={{ color: TEXT_PRIMARY }}>
+                Score Breakdown
+              </h2>
               <ComparisonCards
                 averageScores={stats.averageScores}
                 recentScores={stats.recentScores}
@@ -161,8 +214,13 @@ export function DashboardPage() {
             </div>
 
             {/* Trend Chart */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Progress Over Time</h2>
+            <div
+              className="rounded-xl p-6"
+              style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}` }}
+            >
+              <h2 className="text-2xl font-bold mb-6" style={{ color: TEXT_PRIMARY }}>
+                Progress Over Time
+              </h2>
               <TrendChart history={stats.history} />
             </div>
 
@@ -170,7 +228,16 @@ export function DashboardPage() {
             <div className="text-center">
               <button
                 onClick={() => navigate('/')}
-                className="px-8 py-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-lg shadow-lg hover:shadow-xl transition-all"
+                className="px-8 py-4 rounded-lg font-medium text-lg transition-all"
+                style={{ backgroundColor: '#7c3aed', color: TEXT_PRIMARY }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#6d28d9';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#7c3aed';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
               >
                 Analyze Another Conversation
               </button>

@@ -1,6 +1,12 @@
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import type { ConversationScores } from '../analysis/types';
 
+// ── design tokens ─────────────────────────────────────────────────────────────
+const CARD_BG = '#1a1030';
+const BORDER = 'rgba(139, 92, 246, 0.25)';
+const TEXT_PRIMARY = '#f5f3ff';
+const TEXT_MUTED = '#a78bfa';
+
 interface ComparisonCardProps {
   label: string;
   averageScore: number;
@@ -13,28 +19,41 @@ function ScoreComparison({ label, averageScore, recentScore }: ComparisonCardPro
   const hasChange = Math.abs(difference) > 1;
 
   return (
-    <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+    <div
+      className="flex items-center justify-between p-4 rounded-lg"
+      style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}` }}
+    >
       <div className="flex-1">
-        <div className="text-sm text-gray-600 mb-1">{label}</div>
+        <div className="text-sm mb-1" style={{ color: TEXT_MUTED }}>
+          {label}
+        </div>
         <div className="flex items-baseline gap-3">
-          <span className="text-2xl font-bold text-gray-900">{Math.round(averageScore)}</span>
-          <span className="text-sm text-gray-500">avg</span>
+          <span className="text-2xl font-bold" style={{ color: TEXT_PRIMARY }}>
+            {Math.round(averageScore)}
+          </span>
+          <span className="text-sm" style={{ color: TEXT_MUTED }}>
+            avg
+          </span>
           {recentScore !== null && (
             <>
-              <span className="text-gray-400">→</span>
-              <span className="text-xl font-semibold text-purple-600">
+              <span style={{ color: TEXT_MUTED }}>→</span>
+              <span className="text-xl font-semibold" style={{ color: '#7c3aed' }}>
                 {Math.round(recentScore)}
               </span>
-              <span className="text-sm text-gray-500">recent</span>
+              <span className="text-sm" style={{ color: TEXT_MUTED }}>
+                recent
+              </span>
             </>
           )}
         </div>
       </div>
       {hasChange && recentScore !== null && (
         <div
-          className={`flex items-center gap-1 px-2 py-1 rounded-full text-sm font-medium ${
-            isImprovement ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-          }`}
+          className="flex items-center gap-1 px-2 py-1 rounded-full text-sm font-medium"
+          style={{
+            backgroundColor: isImprovement ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+            color: isImprovement ? '#10b981' : '#ef4444',
+          }}
         >
           {isImprovement ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
           {Math.abs(difference).toFixed(0)}

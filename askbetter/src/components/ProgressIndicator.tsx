@@ -1,5 +1,11 @@
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
+// ── design tokens ─────────────────────────────────────────────────────────────
+const CARD_BG = '#1a1030';
+const BORDER = 'rgba(139, 92, 246, 0.25)';
+const TEXT_PRIMARY = '#f5f3ff';
+const TEXT_MUTED = '#a78bfa';
+
 interface ProgressIndicatorProps {
   trend: 'improving' | 'declining' | 'stable';
   percentage: number;
@@ -10,22 +16,22 @@ export function ProgressIndicator({ trend, percentage, totalAnalyses }: Progress
   const getTrendIcon = () => {
     switch (trend) {
       case 'improving':
-        return <TrendingUp className="w-8 h-8 text-green-500" />;
+        return <TrendingUp className="w-8 h-8" style={{ color: '#10b981' }} />;
       case 'declining':
-        return <TrendingDown className="w-8 h-8 text-red-500" />;
+        return <TrendingDown className="w-8 h-8" style={{ color: '#ef4444' }} />;
       case 'stable':
-        return <Minus className="w-8 h-8 text-gray-500" />;
+        return <Minus className="w-8 h-8" style={{ color: TEXT_MUTED }} />;
     }
   };
 
   const getTrendColor = () => {
     switch (trend) {
       case 'improving':
-        return 'text-green-600';
+        return '#10b981';
       case 'declining':
-        return 'text-red-600';
+        return '#ef4444';
       case 'stable':
-        return 'text-gray-600';
+        return TEXT_MUTED;
     }
   };
 
@@ -44,29 +50,46 @@ export function ProgressIndicator({ trend, percentage, totalAnalyses }: Progress
     }
   };
 
+  const getTrendBorderColor = () => {
+    switch (trend) {
+      case 'improving':
+        return 'rgba(16, 185, 129, 0.4)';
+      case 'declining':
+        return 'rgba(239, 68, 68, 0.4)';
+      case 'stable':
+        return BORDER;
+    }
+  };
+
   const getTrendBgColor = () => {
     switch (trend) {
       case 'improving':
-        return 'bg-green-50 border-green-200';
+        return 'rgba(16, 185, 129, 0.08)';
       case 'declining':
-        return 'bg-red-50 border-red-200';
+        return 'rgba(239, 68, 68, 0.08)';
       case 'stable':
-        return 'bg-gray-50 border-gray-200';
+        return CARD_BG;
     }
   };
 
   return (
-    <div className={`rounded-lg border-2 p-6 ${getTrendBgColor()}`}>
+    <div
+      className="rounded-lg p-6"
+      style={{
+        backgroundColor: getTrendBgColor(),
+        border: `2px solid ${getTrendBorderColor()}`,
+      }}
+    >
       <div className="flex items-start gap-4">
         <div className="flex-shrink-0">{getTrendIcon()}</div>
         <div className="flex-1">
-          <h3 className={`text-lg font-semibold mb-2 ${getTrendColor()}`}>
+          <h3 className="text-lg font-semibold mb-2" style={{ color: getTrendColor() }}>
             {trend === 'improving' && "🎉 You're Improving!"}
             {trend === 'declining' && '⚠️ Room for Improvement'}
             {trend === 'stable' && '📊 Steady Progress'}
           </h3>
-          <p className="text-gray-700">{getTrendMessage()}</p>
-          <div className="mt-4 text-sm text-gray-600">
+          <p style={{ color: TEXT_PRIMARY }}>{getTrendMessage()}</p>
+          <div className="mt-4 text-sm" style={{ color: TEXT_MUTED }}>
             <span className="font-medium">Total Analyses:</span> {totalAnalyses}
           </div>
         </div>
