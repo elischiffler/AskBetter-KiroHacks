@@ -10,6 +10,10 @@ import {
 } from 'recharts';
 import type { AnalysisHistory } from '../lib/dashboardService';
 
+// ── design tokens ─────────────────────────────────────────────────────────────
+const CARD_BG = '#1a1030';
+const TEXT_MUTED = '#a78bfa';
+
 interface TrendChartProps {
   history: AnalysisHistory[];
 }
@@ -30,7 +34,7 @@ export function TrendChart({ history }: TrendChartProps) {
 
   if (chartData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
+      <div className="flex items-center justify-center h-64" style={{ color: TEXT_MUTED }}>
         No analysis history yet. Complete your first analysis to see trends!
       </div>
     );
@@ -39,17 +43,19 @@ export function TrendChart({ history }: TrendChartProps) {
   return (
     <ResponsiveContainer width="100%" height={400}>
       <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-        <XAxis dataKey="analysis" stroke="#6b7280" />
-        <YAxis domain={[0, 100]} stroke="#6b7280" />
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(139, 92, 246, 0.15)" />
+        <XAxis dataKey="analysis" stroke={TEXT_MUTED} style={{ fontSize: '12px' }} />
+        <YAxis domain={[0, 100]} stroke={TEXT_MUTED} style={{ fontSize: '12px' }} />
         <Tooltip
           contentStyle={{
-            backgroundColor: 'white',
-            border: '1px solid #e5e7eb',
+            backgroundColor: CARD_BG,
+            border: '1px solid rgba(139, 92, 246, 0.3)',
             borderRadius: '8px',
+            color: '#f5f3ff',
           }}
+          labelStyle={{ color: '#f5f3ff' }}
         />
-        <Legend />
+        <Legend wrapperStyle={{ color: TEXT_MUTED }} />
         <Line type="monotone" dataKey="Overall" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} />
         <Line type="monotone" dataKey="Autonomy" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
         <Line type="monotone" dataKey="Curiosity" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
