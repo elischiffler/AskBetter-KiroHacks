@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   MessageSquare,
@@ -800,82 +800,77 @@ Let's start with the first one. What were you trying to accomplish with this pro
 
           {/* Message list */}
           <div
-            className="h-[36vh] overflow-y-auto pr-1 mb-4 rounded-xl p-3"
+            className="h-[44vh] overflow-y-auto pr-1 mb-4 rounded-xl p-3"
             style={{ backgroundColor: 'rgba(15,10,30,0.6)', border: `1px solid ${BORDER}` }}
           >
             {messages.length === 0 ? (
               <div
-                className="h-[44vh] overflow-y-auto pr-1 mb-4 rounded-xl p-3"
-                style={{ backgroundColor: 'rgba(15,10,30,0.6)', border: `1px solid ${BORDER}` }}
+                className="h-full flex items-center justify-center text-sm"
+                style={{ color: TEXT_DIM }}
               >
-                {messages.length === 0 ? (
-                  <div
-                    className="h-full flex items-center justify-center text-sm"
-                    style={{ color: TEXT_DIM }}
-                  >
-                    Send a message to start chatting.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {messages.map((m, index) => {
-                      const isUser = m.role === 'user';
-                      return (
-                        <div
-                          key={index}
-                          className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className="max-w-[85%] rounded-xl px-4 py-3 text-sm whitespace-pre-wrap"
-                            style={
-                              isUser
-                                ? { backgroundColor: '#7c3aed', color: TEXT_PRIMARY }
-                                : {
-                                    backgroundColor: 'rgba(139,92,246,0.1)',
-                                    border: `1px solid ${BORDER}`,
-                                    color: TEXT_MUTED,
-                                  }
-                            }
-                          >
-                            {m.content || (isStreaming && !isUser ? '…' : '')}
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {/* Action buttons after initial message */}
-                    {showActionButtons && messages.length === 1 && (
-                      <div className="flex gap-3 justify-center mt-4">
-                        <button
-                          onClick={handleDraftBetter}
-                          disabled={isStreaming}
-                          className="px-6 py-3 rounded-xl text-white text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
-                          style={{ backgroundColor: '#7c3aed' }}
-                        >
-                          ✍️ Draft Better?
-                        </button>
-                        <button
-                          onClick={handleAskOwn}
-                          disabled={isStreaming}
-                          className="px-6 py-3 rounded-xl text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
-                          style={{
-                            border: `1px solid ${BORDER}`,
-                            color: TEXT_MUTED,
-                            backgroundColor: 'transparent',
-                          }}
-                        >
-                          💬 Ask Own Questions
-                        </button>
+                Send a message to start chatting.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {messages.map((m, index) => {
+                  const isUser = m.role === 'user';
+                  return (
+                    <div
+                      key={index}
+                      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className="max-w-[85%] rounded-xl px-4 py-3 text-sm whitespace-pre-wrap"
+                        style={
+                          isUser
+                            ? { backgroundColor: '#7c3aed', color: TEXT_PRIMARY }
+                            : {
+                                backgroundColor: 'rgba(139,92,246,0.1)',
+                                border: `1px solid ${BORDER}`,
+                                color: TEXT_MUTED,
+                              }
+                        }
+                      >
+                        {m.content || (isStreaming && !isUser ? '…' : '')}
                       </div>
-                    )}
+                    </div>
+                  );
+                })}
+
+                {/* Action buttons after initial message */}
+                {showActionButtons && messages.length === 1 && (
+                  <div className="flex gap-3 justify-center mt-4">
+                    <button
+                      onClick={handleDraftBetter}
+                      disabled={isStreaming}
+                      className="px-6 py-3 rounded-xl text-white text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
+                      style={{ backgroundColor: '#7c3aed' }}
+                    >
+                      ✍️ Draft Better?
+                    </button>
+                    <button
+                      onClick={handleAskOwn}
+                      disabled={isStreaming}
+                      className="px-6 py-3 rounded-xl text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
+                      style={{
+                        border: `1px solid ${BORDER}`,
+                        color: TEXT_MUTED,
+                        backgroundColor: 'transparent',
+                      }}
+                    >
+                      💬 Ask Own Questions
+                    </button>
                   </div>
                 )}
               </div>
+            )}
+          </div>
 
-              {chatError && (
-                <p className="text-xs mb-3" style={{ color: '#f87171' }}>
-                  {chatError}
-                </p>
-              )}
+          {chatError && (
+            <p className="text-xs mb-3" style={{ color: '#f87171' }}>
+              {chatError}
+            </p>
+          )}
 
               {/* Input row */}
               <div className="flex items-end gap-2">
