@@ -29,6 +29,42 @@ const supabase =
 // defaults to system Chromium installed in the Docker image
 const CHROMIUM_PATH = process.env.CHROMIUM_PATH || '/usr/bin/chromium';
 
+// ---------------------------------------------------------------------------
+// Warm browser pool — launch Chromium once, reuse across requests
+// ---------------------------------------------------------------------------
+let _browser = null;
+
+async function getWarmBrowser() {
+  if (_browser && _browser.connected) return _browser;
+
+  console.log('[browser] Launching warm Chromium instance...');
+  _browser = await puppeteer.launch({
+    executablePath: CHROMIUM_PATH,
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--single-process',
+      '--no-zygote',
+    ],
+  });
+
+  _browser.on('disconnected', () => {
+    console.log('[browser] Chromium disconnected, will relaunch on next request');
+    _browser = null;
+  });
+
+  console.log('[browser] Chromium warm and ready');
+  return _browser;
+}
+
+// Pre-launch browser on server start (non-blocking)
+getWarmBrowser().catch((err) => {
+  console.warn('[browser] Failed to pre-launch Chromium:', err.message);
+});
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -146,19 +182,69 @@ app.use(
 function extractMessagesFromHtml(html) {
   const userMessages = [];
 
-  // ── Strategy A: Parse __NEXT_DATA__ JSON (ChatGPT) ──────────────────────
+  // ── Strategy A: React Router streaming data (modern ChatGPT) ────────────
+  // ChatGPT embeds conversation data in streamController.enqueue() calls
+  // as a serialized JSON array. User messages appear as strings near "user" role markers.
+  const enqueuePattern = /streamController\.enqueue\("([\s\S]*?)"\);/gi;
+  let enqueueMatch;
+  while ((enqueueMatch = enqueuePattern.exec(html)) !== null) {
+    try {
+      // Unescape the string (it's double-escaped JSON inside a JS string)
+      const raw = enqueueMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\').replace(/\\n/g, '\n');
+      const arr = JSON.parse(raw);
+
+      if (Array.isArray(arr)) {
+        // Walk the flat array: find "user" role strings and grab nearby message text
+        for (let i = 0; i < arr.length; i++) {
+          if (arr[i] === 'user') {
+            // Look backwards for the message text — it's typically a few positions before
+            // In the serialized format, the message content appears as a long string
+            // near the "user" role marker
+            for (let j = Math.max(0, i - 10); j < i; j++) {
+              if (
+                typeof arr[j] === 'string' &&
+                arr[j].length > 10 &&
+                !arr[j].startsWith('http') &&
+                !arr[j].includes('nonce')
+              ) {
+                // Verify it's not a system/metadata string
+                const s = arr[j];
+                if (
+                  !s.startsWith('{') &&
+                  !s.startsWith('[') &&
+                  !s.startsWith('<') &&
+                  !s.includes('chatgpt.com') &&
+                  !s.includes('uuid') &&
+                  !userMessages.includes(s)
+                ) {
+                  userMessages.push(s);
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // Not parseable, continue
+    }
+  }
+
+  if (userMessages.length > 0) {
+    console.log(`[extract] React Router stream found ${userMessages.length} user messages`);
+    return { messages: userMessages, strategy: 'react-router-stream' };
+  }
+
+  // ── Strategy B: Parse __NEXT_DATA__ JSON (older ChatGPT) ────────────────
   const nextDataMatch = html.match(/<script\s+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
   if (nextDataMatch) {
     try {
       const data = JSON.parse(nextDataMatch[1]);
-      // Walk the entire JSON tree looking for user messages
       const walk = (obj) => {
         if (!obj || typeof obj !== 'object') return;
         if (Array.isArray(obj)) {
           obj.forEach(walk);
           return;
         }
-        // ChatGPT structure: { author: { role: "user" }, content: { parts: ["..."] } }
         const role = obj?.author?.role || obj?.role;
         if (role === 'user' || role === 'human') {
           let text = '';
@@ -170,9 +256,7 @@ function extractMessagesFromHtml(html) {
           } else if (typeof obj.content === 'string') {
             text = obj.content.trim();
           }
-          if (text.length > 0 && !userMessages.includes(text)) {
-            userMessages.push(text);
-          }
+          if (text.length > 0 && !userMessages.includes(text)) userMessages.push(text);
         }
         Object.values(obj).forEach(walk);
       };
@@ -186,45 +270,12 @@ function extractMessagesFromHtml(html) {
     }
   }
 
-  // ── Strategy B: Regex scan script tags for role/content patterns ─────────
+  // ── Strategy C: Regex scan for role/content patterns in script tags ──────
   const scriptPattern = /<script[^>]*>([\s\S]*?)<\/script>/gi;
   let match;
   while ((match = scriptPattern.exec(html)) !== null) {
     const content = match[1];
     if (content.includes('"role"') && (content.includes('"user"') || content.includes('"human"'))) {
-      // Try to parse as JSON first
-      try {
-        const parsed = JSON.parse(content);
-        const walk = (obj) => {
-          if (!obj || typeof obj !== 'object') return;
-          if (Array.isArray(obj)) {
-            obj.forEach(walk);
-            return;
-          }
-          const role = obj?.author?.role || obj?.role;
-          if (role === 'user' || role === 'human') {
-            let text = '';
-            if (obj.content?.parts) {
-              text = obj.content.parts
-                .filter((p) => typeof p === 'string')
-                .join('\n')
-                .trim();
-            } else if (typeof obj.content === 'string') {
-              text = obj.content.trim();
-            }
-            if (text.length > 0 && !userMessages.includes(text)) userMessages.push(text);
-          }
-          Object.values(obj).forEach(walk);
-        };
-        walk(parsed);
-        if (userMessages.length > 0) {
-          return { messages: userMessages, strategy: 'script-json-parse' };
-        }
-      } catch {
-        // Not valid JSON, fall through to regex
-      }
-
-      // Regex fallback: role before content
       const rc = /"role"\s*:\s*"(user|human)"[\s\S]{0,500}?"content"\s*:\s*"((?:[^"\\]|\\.)*)"/gi;
       let m;
       while ((m = rc.exec(content)) !== null) {
@@ -236,8 +287,6 @@ function extractMessagesFromHtml(html) {
           .trim();
         if (text.length > 0) userMessages.push(text);
       }
-
-      // content before role
       const cr = /"content"\s*:\s*"((?:[^"\\]|\\.)*)"[\s\S]{0,500}?"role"\s*:\s*"(user|human)"/gi;
       while ((m = cr.exec(content)) !== null) {
         const text = m[1]
@@ -246,26 +295,13 @@ function extractMessagesFromHtml(html) {
           .replace(/\\"/g, '"')
           .replace(/\\\\/g, '\\')
           .trim();
-        if (text.length > 0 && !userMessages.includes(text)) {
-          userMessages.push(text);
-        }
+        if (text.length > 0 && !userMessages.includes(text)) userMessages.push(text);
       }
     }
   }
 
   if (userMessages.length > 0) {
     return { messages: userMessages, strategy: 'regex-extraction' };
-  }
-
-  // ── Strategy C: Look for content in JSON arrays with parts ──────────────
-  const partsPattern = /"parts"\s*:\s*\[\s*"((?:[^"\\]|\\.)*)"/gi;
-  while ((match = partsPattern.exec(html)) !== null) {
-    const text = match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\').trim();
-    if (text.length > 5) userMessages.push(text);
-  }
-
-  if (userMessages.length > 0) {
-    return { messages: userMessages, strategy: 'parts-extraction' };
   }
 
   // ── Strategy D: Strip HTML and return readable text ─────────────────────
@@ -357,25 +393,12 @@ app.get('/api/fetch-share', async (req, res) => {
   }
 
   // ── Strategy 2: Puppeteer rendering (fallback) ──────────────────────────
-  let browser;
+  let page;
   try {
     console.log('[fetch-share] Falling back to Puppeteer...');
-    console.log('[fetch-share] Chromium path:', CHROMIUM_PATH);
-    browser = await puppeteer.launch({
-      executablePath: CHROMIUM_PATH,
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--single-process',
-        '--no-zygote',
-      ],
-    });
-    console.log('[fetch-share] Chromium launched successfully');
-
-    const page = await browser.newPage();
+    const browser = await getWarmBrowser();
+    page = await browser.newPage();
+    console.log('[fetch-share] New page created from warm browser');
 
     // Block images, fonts, and media to speed up load
     await page.setRequestInterception(true);
@@ -659,7 +682,7 @@ app.get('/api/fetch-share', async (req, res) => {
       error: `Could not load the shared conversation: ${message}`,
     });
   } finally {
-    if (browser) await browser.close();
+    if (page) await page.close().catch(() => {});
   }
 });
 
