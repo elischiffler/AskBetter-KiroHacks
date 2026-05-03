@@ -6,7 +6,7 @@ import { Header } from '../components/Header';
 import { TrendChart } from '../components/TrendChart';
 import { ProgressIndicator } from '../components/ProgressIndicator';
 import { ComparisonCards } from '../components/ComparisonCard';
-import { BarChart3, TrendingUp, Target, Award } from 'lucide-react';
+import { ArrowLeft, BarChart3, TrendingUp, Target, Award } from 'lucide-react';
 
 // ── design tokens ─────────────────────────────────────────────────────────────
 const BG = '#0f0a1e';
@@ -100,6 +100,18 @@ export function DashboardPage() {
     <div className="min-h-screen" style={{ backgroundColor: BG, color: TEXT_PRIMARY }}>
       <Header />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
+        {/* Back nav */}
+        <button
+          onClick={() => navigate('/analyze')}
+          className="flex items-center gap-2 mb-8 text-xs font-bold uppercase tracking-widest transition-all"
+          style={{ color: TEXT_MUTED }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = TEXT_PRIMARY)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = TEXT_MUTED)}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Analyze Another Chat
+        </button>
+
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2" style={{ color: TEXT_PRIMARY }}>
@@ -238,24 +250,7 @@ export function DashboardPage() {
               <TrendChart history={stats.history} />
             </div>
 
-            {/* Action Button */}
-            <div className="text-center">
-              <button
-                onClick={() => navigate('/')}
-                className="px-8 py-4 rounded-lg font-medium text-lg transition-all"
-                style={{ backgroundColor: '#7c3aed', color: TEXT_PRIMARY }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#6d28d9';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#7c3aed';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                Analyze Another Conversation
-              </button>
-            </div>
+
           </div>
         )}
       </main>

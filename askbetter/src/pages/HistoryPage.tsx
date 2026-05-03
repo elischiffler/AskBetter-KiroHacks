@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, ArrowRight, Loader2, Inbox } from 'lucide-react';
+import { ArrowLeft, Trash2, ArrowRight, Loader2, Inbox } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Header } from '../components/Header';
 import { fetchHistory, deleteHistory, type ChatHistoryRow } from '../lib/chatHistory';
@@ -67,6 +67,18 @@ export function HistoryPage() {
 
       <div className="flex justify-center items-start px-4 pt-28 pb-24">
         <div className="w-full max-w-2xl">
+          {/* Back nav */}
+          <button
+            onClick={() => navigate('/analyze')}
+            className="flex items-center gap-2 mb-8 text-xs font-bold uppercase tracking-widest transition-all"
+            style={{ color: TEXT_MUTED }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = TEXT_PRIMARY)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = TEXT_MUTED)}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Analyze Another Chat
+          </button>
+
           <p
             className="text-xs font-semibold tracking-widest uppercase mb-3 text-center"
             style={{ color: TEXT_MUTED }}
@@ -167,6 +179,7 @@ export function HistoryPage() {
                   </div>
                 </div>
               ))}
+
             </div>
           )}
         </div>
