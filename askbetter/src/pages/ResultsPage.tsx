@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   MessageSquare,
@@ -13,7 +13,15 @@ import {
 } from 'lucide-react';
 import type { AnalysisResult } from '../analysis/types';
 import { Header } from '../components/Header';
+import { TokenUsageCard } from '../components/TokenUsageCard';
 import { streamChatReply, type ChatMessage } from '../lib/chatClient';
+import {
+  PROVIDER_OPTIONS,
+  type TokenProvider,
+  type NormalizedTokenResponse,
+} from '../analysis/tokenConfig';
+import { estimateTokens } from '../analysis/tokenEstimator';
+import { calculateCost } from '../analysis/costCalculator';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -310,6 +318,91 @@ export function ResultsPage() {
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const [chatError, setChatError] = useState('');
   const [showActionButtons, setShowActionButtons] = useState(true);
+
+  // ── Provider selection state ──────────────────────────────────────────────
+  const [selectedProvider, setSelectedProvider] = useState<TokenProvider>('openai');
+  const [isCountingTokens, setIsCountingTokens] = useState(false);
+  const [providerTokenResult, setProviderTokenResult] = useState<NormalizedTokenResponse | null>(
+    null
+  );
+  const [providerWarning, setProviderWarning] = useState('');
+
+  const SERVER_URL = import.meta.env.VITE_PROXY_URL || 'http://localhost:3001';
+
+  const handleProviderChange = useCallback(
+    async (provider: TokenProvider) => {
+      setSelectedProvider(provider);
+      setProviderWarning('');
+      setProviderTokenResult(null);
+
+      // OpenAI: use existing client-side data — no server call
+      if (provider === 'openai') {
+        return;
+      }
+
+      // Gemini / Perplexity: call the server
+      const providerOption = PROVIDER_OPTIONS.find((p) => p.provider === provider);
+      if (!providerOption) return;
+
+      const messages = result.prompts.map((p) => ({ role: 'user', content: p.text }));
+
+      setIsCountingTokens(true);
+
+      try {
+        const response = await fetch(`${SERVER_URL}/api/count-tokens`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            provider,
+            model: providerOption.model,
+            messages,
+          }),
+        });
+
+        if (!response.ok) {
+          // Server returned an error — fall back to client-side estimation
+          const concatenated = result.prompts.map((p) => p.text).join('\n');
+          const fallback = estimateTokens(concatenated);
+          setProviderTokenResult({
+            inputTokens: fallback.tokens,
+            estimationType: 'local_estimate',
+            provider,
+            model: providerOption.model,
+            warning: `Server returned ${response.status}. Fell back to local estimation.`,
+          });
+          setProviderWarning(
+            `${providerOption.label} API unavailable (HTTP ${response.status}). Showing local estimation instead.`
+          );
+          return;
+        }
+
+        const data: NormalizedTokenResponse = await response.json();
+        setProviderTokenResult(data);
+
+        if (data.warning) {
+          setProviderWarning(data.warning);
+        }
+      } catch (err) {
+        // Network error or fetch failure — fall back to client-side estimation
+        const concatenated = result.prompts.map((p) => p.text).join('\n');
+        const fallback = estimateTokens(concatenated);
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        setProviderTokenResult({
+          inputTokens: fallback.tokens,
+          estimationType: 'local_estimate',
+          provider,
+          model: providerOption.model,
+          warning: `Failed to reach server: ${message}. Fell back to local estimation.`,
+        });
+        setProviderWarning(
+          `Could not reach the token counting server. Showing local estimation instead.`
+        );
+      } finally {
+        setIsCountingTokens(false);
+      }
+    },
+    [result, SERVER_URL]
+  );
 
   // Generate initial AI message on mount
   useState(() => {
@@ -609,13 +702,18 @@ Now, I want to improve my prompts.`,
             </Card>
           </div>
 
-          {/* Live Chat (right, wider) */}
-          <div className="lg:col-span-8">
+          {/* Live Chat + Token Usage (right, wider) */}
+          <div className="lg:col-span-8 flex flex-col">
             <Card className="!p-6">
-              <SectionLabel>AI Assistant</SectionLabel>
-              <SectionTitle>Live Chat</SectionTitle>
+          <SectionLabel>AI Assistant</SectionLabel>
+          <SectionTitle>Live Chat</SectionTitle>
 
-              {/* Message list */}
+          {/* Message list */}
+          <div
+            className="h-[36vh] overflow-y-auto pr-1 mb-4 rounded-xl p-3"
+            style={{ backgroundColor: 'rgba(15,10,30,0.6)', border: `1px solid ${BORDER}` }}
+          >
+            {messages.length === 0 ? (
               <div
                 className="h-[44vh] overflow-y-auto pr-1 mb-4 rounded-xl p-3"
                 style={{ backgroundColor: 'rgba(15,10,30,0.6)', border: `1px solid ${BORDER}` }}
@@ -741,6 +839,87 @@ Now, I want to improve my prompts.`,
                 </button>
               </div>
             </Card>
+
+            {/* Token Usage Card — fits under Live Chat in the right column */}
+
+            {/* Provider toggle buttons */}
+            <div
+              className="flex gap-2 mb-3 p-1 rounded-xl"
+              style={{ backgroundColor: 'rgba(15,10,30,0.6)', border: `1px solid ${BORDER}` }}
+            >
+              {PROVIDER_OPTIONS.map((opt) => {
+                const isSelected = selectedProvider === opt.provider;
+                return (
+                  <button
+                    key={opt.provider}
+                    onClick={() => void handleProviderChange(opt.provider)}
+                    disabled={isCountingTokens}
+                    className="flex-1 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all"
+                    style={{
+                      backgroundColor: isSelected ? '#7c3aed' : 'transparent',
+                      color: isSelected ? TEXT_PRIMARY : TEXT_DIM,
+                      cursor: isCountingTokens ? 'not-allowed' : 'pointer',
+                      opacity: isCountingTokens && !isSelected ? 0.5 : 1,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected && !isCountingTokens)
+                        e.currentTarget.style.backgroundColor = 'rgba(124,58,237,0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected)
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    {opt.provider === 'openai'
+                      ? 'OpenAI'
+                      : opt.provider === 'gemini'
+                        ? 'Gemini'
+                        : 'Perplexity'}
+                  </button>
+                );
+              })}
+            </div>
+
+            <TokenUsageCard
+              totalTokens={
+                selectedProvider === 'openai'
+                  ? result.totalPromptTokens
+                  : providerTokenResult
+                    ? providerTokenResult.inputTokens
+                    : result.totalPromptTokens
+              }
+              estimatedCostUsd={(() => {
+                const opt = PROVIDER_OPTIONS.find((p) => p.provider === selectedProvider);
+                const tokens =
+                  selectedProvider === 'openai'
+                    ? result.totalPromptTokens
+                    : providerTokenResult
+                      ? providerTokenResult.inputTokens
+                      : result.totalPromptTokens;
+                return calculateCost(tokens, opt?.pricePerMillion ?? 2.5);
+              })()}
+              breakdown={result.tokenBreakdown}
+              label={result.tokenEstimateLabel}
+              disclaimer={result.tokenEstimateDisclaimer}
+              isLoading={isCountingTokens}
+              providerLabel={
+                selectedProvider === 'openai'
+                  ? undefined
+                  : providerTokenResult
+                    ? PROVIDER_OPTIONS.find((p) => p.provider === providerTokenResult.provider)
+                        ?.label
+                    : undefined
+              }
+              methodNote={
+                selectedProvider === 'openai'
+                  ? PROVIDER_OPTIONS[0].methodNote
+                  : providerTokenResult
+                    ? PROVIDER_OPTIONS.find((p) => p.provider === providerTokenResult.provider)
+                        ?.methodNote
+                    : undefined
+              }
+              warningNote={providerWarning || undefined}
+            />
           </div>
         </div>
 
