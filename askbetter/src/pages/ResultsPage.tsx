@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -13,8 +13,6 @@ import {
 import type { AnalysisResult } from '../analysis/types';
 import { Header } from '../components/Header';
 import { streamChatReply, type ChatMessage } from '../lib/chatClient';
-import { useAuth } from '../context/AuthContext';
-import { saveAnalysis } from '../lib/dashboardService';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -181,30 +179,10 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 export function ResultsPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const result = location.state?.result as AnalysisResult | undefined;
 
-  // Save analysis to database when user is logged in
-  useEffect(() => {
-    if (result && user) {
-      const promptCount = result.prompts.length;
-      const outsourcingCount = result.prompts.filter(
-        (p) => p.cognitiveRole === 'outsourcing'
-      ).length;
-      const engagedCount = result.prompts.filter(
-        (p) =>
-          p.cognitiveRole === 'exploring' ||
-          p.cognitiveRole === 'thinking_aloud' ||
-          p.cognitiveRole === 'stress_testing'
-      ).length;
-
-      saveAnalysis(user.id, result.scores, promptCount, outsourcingCount, engagedCount).catch(
-        (err) => {
-          console.error('Failed to save analysis:', err);
-        }
-      );
-    }
-  }, [result, user]);
+  // Analysis is saved to chat_histories from InputPage/AnalyzePage before navigating here.
+  // No separate save needed — the dashboard reads from the same table.
 
   if (!result) {
     navigate('/');
