@@ -311,76 +311,216 @@ app.get('/api/fetch-share', async (req, res) => {
     // Use domcontentloaded instead of networkidle2 for faster loading
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    // Give the page a few seconds to render dynamic content
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    // Detect platform from URL to choose wait strategy
+    const parsedUrl = new URL(url);
+    const hostname = parsedUrl.hostname;
+
+    // Platform-specific wait strategies
+    if (hostname.includes('gemini.google.com')) {
+      // Gemini renders conversation turns in message-content elements
+      await page
+        .waitForSelector(
+          'message-content, .conversation-container, .model-response-text, [class*="query-text"], [class*="response-text"]',
+          { timeout: 15000 }
+        )
+        .catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    } else if (hostname.includes('claude.ai')) {
+      // Claude may have Cloudflare challenge, then renders messages
+      await new Promise((resolve) => setTimeout(resolve, 8000));
+      await page
+        .waitForSelector(
+          '[class*="human"], [class*="Human"], [data-testid*="human"], .font-user-message',
+          { timeout: 10000 }
+        )
+        .catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    } else if (hostname.includes('grok.com')) {
+      await page
+        .waitForSelector('[class*="message"], [class*="user"]', { timeout: 15000 })
+        .catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    } else if (hostname.includes('perplexity.ai')) {
+      await page
+        .waitForSelector('[class*="query"], .whitespace-pre-line, [class*="Question"]', {
+          timeout: 15000,
+        })
+        .catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    } else {
+      // ChatGPT or unknown — wait for data attributes
+      await page.waitForSelector('[data-message-author-role]', { timeout: 10000 }).catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
 
     // Extract conversation messages directly from the rendered DOM
-    const messages = await page.evaluate(() => {
+    const messages = await page.evaluate((host) => {
       const results = [];
 
-      // Strategy 1: ChatGPT's data-message-author-role attribute
-      const messageEls = document.querySelectorAll('[data-message-author-role]');
-      if (messageEls.length > 0) {
-        messageEls.forEach((el) => {
-          const role = el.getAttribute('data-message-author-role');
-          if (role === 'user') {
-            const text = el.innerText.trim();
-            if (text) results.push(text);
-          }
-        });
-        return { messages: results, strategy: 'data-attribute' };
+      // ── ChatGPT ──────────────────────────────────────────────────────────
+      if (host.includes('chatgpt.com') || host.includes('openai.com')) {
+        const messageEls = document.querySelectorAll('[data-message-author-role]');
+        if (messageEls.length > 0) {
+          messageEls.forEach((el) => {
+            const role = el.getAttribute('data-message-author-role');
+            if (role === 'user') {
+              const text = el.innerText.trim();
+              if (text) results.push(text);
+            }
+          });
+          if (results.length > 0) return { messages: results, strategy: 'chatgpt-data-attr' };
+        }
+
+        // Fallback: __NEXT_DATA__
+        const nextDataEl = document.getElementById('__NEXT_DATA__');
+        if (nextDataEl) {
+          try {
+            const data = JSON.parse(nextDataEl.textContent || '');
+            const walk = (obj) => {
+              if (!obj || typeof obj !== 'object') return;
+              if (obj.role === 'user' && obj.content) {
+                const content =
+                  typeof obj.content === 'string'
+                    ? obj.content
+                    : obj.content?.parts?.join(' ') || '';
+                if (content.trim()) results.push(content.trim());
+              }
+              Object.values(obj).forEach(walk);
+            };
+            walk(data);
+            if (results.length > 0) return { messages: results, strategy: 'chatgpt-next-data' };
+          } catch {}
+        }
       }
 
-      // Strategy 2: Look for common chat UI patterns across platforms
-      const chatSelectors = [
-        '[data-message-author-role="user"]',
-        '.human-message',
-        '.user-message',
-        '[class*="human"]',
-        '[class*="UserMessage"]',
-        '[class*="user-turn"]',
+      // ── Gemini ───────────────────────────────────────────────────────────
+      if (host.includes('gemini.google.com')) {
+        // Gemini uses custom elements: user queries are in specific containers
+        // Try multiple selectors for Gemini's evolving DOM
+        const geminiSelectors = [
+          'message-content[class*="user"] .message-text',
+          'message-content[class*="user"]',
+          '.query-text',
+          '.user-query',
+          '[class*="query-content"]',
+          '[class*="user-message"]',
+          'user-query',
+          '.conversation-turn.user .text-content',
+        ];
+
+        for (const selector of geminiSelectors) {
+          const els = document.querySelectorAll(selector);
+          if (els.length > 0) {
+            els.forEach((el) => {
+              const text = el.innerText?.trim();
+              if (text && text.length > 0) results.push(text);
+            });
+            if (results.length > 0) return { messages: results, strategy: `gemini:${selector}` };
+          }
+        }
+
+        // Gemini fallback: look at all text nodes and find user turns
+        // Gemini often alternates user/model in the DOM tree
+        const allTurns = document.querySelectorAll('.conversation-turn, [class*="turn"]');
+        if (allTurns.length > 0) {
+          allTurns.forEach((turn, i) => {
+            // Even turns are typically user, odd are model
+            if (i % 2 === 0) {
+              const text = turn.innerText?.trim();
+              if (text && text.length > 0 && text.length < 5000) results.push(text);
+            }
+          });
+          if (results.length > 0) return { messages: results, strategy: 'gemini-turns' };
+        }
+      }
+
+      // ── Claude ───────────────────────────────────────────────────────────
+      if (host.includes('claude.ai')) {
+        const claudeSelectors = [
+          '[data-testid="human-turn"]',
+          '[class*="human-turn"]',
+          '.font-user-message',
+          '[class*="HumanMessage"]',
+          '[class*="human-message"]',
+          '[data-is-human="true"]',
+        ];
+
+        for (const selector of claudeSelectors) {
+          const els = document.querySelectorAll(selector);
+          if (els.length > 0) {
+            els.forEach((el) => {
+              const text = el.innerText?.trim();
+              if (text && text.length > 0) results.push(text);
+            });
+            if (results.length > 0) return { messages: results, strategy: `claude:${selector}` };
+          }
+        }
+      }
+
+      // ── Grok ─────────────────────────────────────────────────────────────
+      if (host.includes('grok.com') || host.includes('x.com')) {
+        const grokSelectors = [
+          '[class*="user-message"]',
+          '[class*="UserMessage"]',
+          '[data-role="user"]',
+          '.message.user',
+        ];
+
+        for (const selector of grokSelectors) {
+          const els = document.querySelectorAll(selector);
+          if (els.length > 0) {
+            els.forEach((el) => {
+              const text = el.innerText?.trim();
+              if (text && text.length > 0) results.push(text);
+            });
+            if (results.length > 0) return { messages: results, strategy: `grok:${selector}` };
+          }
+        }
+      }
+
+      // ── Perplexity ───────────────────────────────────────────────────────
+      if (host.includes('perplexity.ai')) {
+        const perplexitySelectors = [
+          '.whitespace-pre-line',
+          '[class*="QueryText"]',
+          '[class*="query-text"]',
+          '[class*="Question"]',
+        ];
+
+        for (const selector of perplexitySelectors) {
+          const els = document.querySelectorAll(selector);
+          if (els.length > 0) {
+            els.forEach((el) => {
+              const text = el.innerText?.trim();
+              if (text && text.length > 0 && text.length < 5000) results.push(text);
+            });
+            if (results.length > 0)
+              return { messages: results, strategy: `perplexity:${selector}` };
+          }
+        }
+      }
+
+      // ── Generic fallback: look for role-based patterns ───────────────────
+      const genericSelectors = [
         '[data-role="user"]',
+        '[role="user"]',
+        '[class*="user-message"]',
+        '[class*="human"]',
       ];
 
-      for (const selector of chatSelectors) {
+      for (const selector of genericSelectors) {
         const els = document.querySelectorAll(selector);
         if (els.length > 0) {
           els.forEach((el) => {
             const text = el.innerText?.trim();
-            if (text && text.length > 0) results.push(text);
+            if (text && text.length > 0 && text.length < 5000) results.push(text);
           });
-          if (results.length > 0) return { messages: results, strategy: `selector:${selector}` };
+          if (results.length > 0) return { messages: results, strategy: `generic:${selector}` };
         }
       }
 
-      // Strategy 3: __NEXT_DATA__ JSON
-      const nextDataEl = document.getElementById('__NEXT_DATA__');
-      if (nextDataEl) {
-        try {
-          const data = JSON.parse(nextDataEl.textContent || '');
-          const walk = (obj) => {
-            if (!obj || typeof obj !== 'object') return;
-            if (obj.role === 'user' && obj.content) {
-              const content =
-                typeof obj.content === 'string' ? obj.content : obj.content?.parts?.join(' ') || '';
-              if (content.trim()) results.push(content.trim());
-            }
-            Object.values(obj).forEach(walk);
-          };
-          walk(data);
-          if (results.length > 0) return { messages: results, strategy: 'next-data' };
-        } catch {}
-      }
-
-      // Strategy 4: Get all visible text as fallback — only if it looks like a conversation
-      const body = document.body?.innerText || '';
-      const looksLikeConversation = /^(you|user|human|me)\s*:/im.test(body);
-      if (body.length > 100 && looksLikeConversation) {
-        return { messages: null, strategy: 'body-text', rawText: body };
-      }
-
       return { messages: results, strategy: 'none' };
-    });
+    }, hostname);
 
     console.log(
       `[fetch-share] Puppeteer strategy: ${messages.strategy}, found ${messages.messages?.length || 0} messages`
@@ -391,17 +531,9 @@ app.get('/api/fetch-share', async (req, res) => {
       return res.json({ html: transcript });
     }
 
-    if (messages.rawText) {
-      // Only return raw text if it looks like an actual conversation
-      const conversationPattern = /^(you|user|human|me)\s*:/im;
-      if (conversationPattern.test(messages.rawText)) {
-        return res.json({ html: messages.rawText });
-      }
-    }
-
     return res.status(502).json({
       error:
-        'Could not extract conversation messages. The link may be private, expired, or require JavaScript to load. Try a ChatGPT share link for best results.',
+        'Could not extract conversation messages. The link may be private, expired, or the page did not load properly.',
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error.';
