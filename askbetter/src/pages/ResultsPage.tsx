@@ -951,8 +951,7 @@ Let's start with the first one. What were you trying to accomplish with this pro
                         e.currentTarget.style.backgroundColor = 'rgba(124,58,237,0.2)';
                     }}
                     onMouseLeave={(e) => {
-                      if (!isSelected)
-                        e.currentTarget.style.backgroundColor = 'transparent';
+                      if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
                     }}
                   >
                     {opt.provider === 'openai'

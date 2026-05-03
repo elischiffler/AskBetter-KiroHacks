@@ -1,16 +1,15 @@
-import { Tiktoken } from 'js-tiktoken/lite';
-import cl100k_base from 'js-tiktoken/ranks/cl100k_base';
+import { encodingForModel } from 'js-tiktoken';
 
 export interface TokenEstimate {
   tokens: number;
   fallback: boolean;
 }
 
-let encoder: Tiktoken | null = null;
+let encoder: ReturnType<typeof encodingForModel> | null = null;
 let initFailed = false;
 
 try {
-  encoder = new Tiktoken(cl100k_base);
+  encoder = encodingForModel('gpt-4o');
 } catch {
   initFailed = true;
 }

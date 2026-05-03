@@ -3,7 +3,7 @@ export const TOKEN_CONFIG = {
   encoding: 'cl100k_base',
 
   /** Price per 1 million input tokens in USD (GPT-4o rate) */
-  pricePerMillion: 2.50,
+  pricePerMillion: 2.5,
 
   /** Display label shown on the Token Usage Card */
   label: 'Estimated using cl100k_base encoding',
@@ -13,8 +13,7 @@ export const TOKEN_CONFIG = {
     'Estimates are based on pasted user messages only and may differ from provider-billed tokens.',
 
   /** Fallback disclaimer when tokenizer fails to load */
-  fallbackDisclaimer:
-    'Token estimation was unavailable for this analysis. Counts shown as zero.',
+  fallbackDisclaimer: 'Token estimation was unavailable for this analysis. Counts shown as zero.',
 } as const;
 
 export type TokenProvider = 'openai' | 'gemini' | 'perplexity';
@@ -37,7 +36,7 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     label: 'OpenAI · gpt-4o',
     model: 'gpt-4o',
     methodNote: 'Estimated locally.',
-    pricePerMillion: 2.50,
+    pricePerMillion: 2.5,
   },
   {
     provider: 'gemini',
