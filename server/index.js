@@ -20,10 +20,9 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 const supabase =
   SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-// Path to Playwright's Chromium — works without installing Chrome separately
-const CHROMIUM_PATH =
-  process.env.CHROMIUM_PATH ||
-  `${process.env.HOME}/Library/Caches/ms-playwright/chromium-1217/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`;
+// Chromium path: CHROMIUM_PATH env var for local dev or custom installs,
+// defaults to system Chromium installed in the Docker image
+const CHROMIUM_PATH = process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -120,7 +119,9 @@ app.use(
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
-      // Add your production domain here when deploying:
+      // Allow Vercel preview and production deployments
+      if (origin.endsWith('.vercel.app')) return callback(null, true);
+      // Add your custom domain here if you have one:
       // if (origin === "https://yourdomain.com") return callback(null, true);
       callback(new Error(`CORS: origin ${origin} not allowed`));
     },
@@ -285,7 +286,12 @@ app.get('/api/fetch-share', async (req, res) => {
     browser = await puppeteer.launch({
       executablePath: CHROMIUM_PATH,
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+      ],
     });
 
     const page = await browser.newPage();
