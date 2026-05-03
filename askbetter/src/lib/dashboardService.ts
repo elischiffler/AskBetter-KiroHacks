@@ -8,6 +8,7 @@ export interface AnalysisHistory {
   scores: ConversationScores;
   prompt_count: number;
   title: string;
+  platform: string;
   analysis_result: AnalysisResult;
 }
 
@@ -18,6 +19,7 @@ export interface DashboardStats {
   trend: 'improving' | 'declining' | 'stable';
   trendPercentage: number;
   history: AnalysisHistory[];
+  platformBreakdown: Record<string, number>;
 }
 
 /**
@@ -27,7 +29,7 @@ export interface DashboardStats {
 async function getAnalysisHistory(userId: string): Promise<AnalysisHistory[]> {
   const { data, error } = await supabase
     .from('chat_histories')
-    .select('id, user_id, created_at, prompt_count, title, analysis_result')
+    .select('id, user_id, created_at, prompt_count, title, platform, analysis_result')
     .eq('user_id', userId)
     .order('created_at', { ascending: true });
 
@@ -45,6 +47,7 @@ async function getAnalysisHistory(userId: string): Promise<AnalysisHistory[]> {
       scores: analysisResult.scores,
       prompt_count: row.prompt_count as number,
       title: row.title as string,
+      platform: (row.platform as string) || 'unknown',
       analysis_result: analysisResult,
     };
   });
@@ -70,6 +73,7 @@ function calculateDashboardStats(history: AnalysisHistory[]): DashboardStats {
       trend: 'stable',
       trendPercentage: 0,
       history: [],
+      platformBreakdown: {},
     };
   }
 
@@ -130,6 +134,13 @@ function calculateDashboardStats(history: AnalysisHistory[]): DashboardStats {
     }
   }
 
+  // Calculate platform breakdown
+  const platformBreakdown: Record<string, number> = {};
+  history.forEach((analysis) => {
+    const p = analysis.platform || 'unknown';
+    platformBreakdown[p] = (platformBreakdown[p] || 0) + 1;
+  });
+
   return {
     totalAnalyses: count,
     averageScores,
@@ -137,6 +148,7 @@ function calculateDashboardStats(history: AnalysisHistory[]): DashboardStats {
     trend,
     trendPercentage,
     history,
+    platformBreakdown,
   };
 }
 
