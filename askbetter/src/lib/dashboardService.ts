@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { ConversationScores } from '../analysis/types';
+import type { ConversationScores, AnalysisResult } from '../analysis/types';
 
 export interface AnalysisHistory {
   id: string;
@@ -7,8 +7,6 @@ export interface AnalysisHistory {
   created_at: string;
   scores: ConversationScores;
   prompt_count: number;
-  passive_count: number;
-  active_count: number;
 }
 
 export interface DashboardStats {
@@ -21,36 +19,13 @@ export interface DashboardStats {
 }
 
 /**
- * Save an analysis result to the database
+ * Get all analysis history for a user by reading from chat_histories
+ * and deriving the scores from the stored AnalysisResult JSON.
  */
-export async function saveAnalysis(
-  userId: string,
-  scores: ConversationScores,
-  promptCount: number,
-  passiveCount: number,
-  activeCount: number
-): Promise<void> {
-  const { error } = await supabase.from('analysis_history').insert({
-    user_id: userId,
-    scores,
-    prompt_count: promptCount,
-    passive_count: passiveCount,
-    active_count: activeCount,
-  });
-
-  if (error) {
-    console.error('Error saving analysis:', error);
-    throw error;
-  }
-}
-
-/**
- * Get all analysis history for a user
- */
-export async function getAnalysisHistory(userId: string): Promise<AnalysisHistory[]> {
+async function getAnalysisHistory(userId: string): Promise<AnalysisHistory[]> {
   const { data, error } = await supabase
-    .from('analysis_history')
-    .select('*')
+    .from('chat_histories')
+    .select('id, user_id, created_at, prompt_count, analysis_result')
     .eq('user_id', userId)
     .order('created_at', { ascending: true });
 
@@ -59,13 +34,23 @@ export async function getAnalysisHistory(userId: string): Promise<AnalysisHistor
     throw error;
   }
 
-  return data || [];
+  return (data ?? []).map((row) => {
+    const result = row.analysis_result as unknown as AnalysisResult;
+    return {
+      id: row.id as string,
+      user_id: row.user_id as string,
+      created_at: row.created_at as string,
+      scores: result.scores,
+      prompt_count: row.prompt_count as number,
+    };
+  });
 }
+
 
 /**
  * Calculate dashboard statistics from analysis history
  */
-export function calculateDashboardStats(history: AnalysisHistory[]): DashboardStats {
+function calculateDashboardStats(history: AnalysisHistory[]): DashboardStats {
   if (history.length === 0) {
     return {
       totalAnalyses: 0,
@@ -85,7 +70,6 @@ export function calculateDashboardStats(history: AnalysisHistory[]): DashboardSt
     };
   }
 
-  // Calculate average scores across all analyses
   const averageScores: ConversationScores = {
     autonomy: 0,
     curiosity: 0,
@@ -115,10 +99,8 @@ export function calculateDashboardStats(history: AnalysisHistory[]): DashboardSt
   averageScores.engagement /= count;
   averageScores.overallQuality /= count;
 
-  // Get most recent scores
   const recentScores = history[history.length - 1].scores;
 
-  // Calculate trend (compare recent 3 vs previous 3, or available)
   let trend: 'improving' | 'declining' | 'stable' = 'stable';
   let trendPercentage = 0;
 
@@ -136,14 +118,12 @@ export function calculateDashboardStats(history: AnalysisHistory[]): DashboardSt
       previousAnalyses.length;
 
     const difference = recentAvg - previousAvg;
-    trendPercentage = Math.abs((difference / previousAvg) * 100);
+    trendPercentage = previousAvg > 0 ? Math.abs((difference / previousAvg) * 100) : 0;
 
     if (difference > 2) {
       trend = 'improving';
     } else if (difference < -2) {
       trend = 'declining';
-    } else {
-      trend = 'stable';
     }
   }
 
@@ -158,7 +138,7 @@ export function calculateDashboardStats(history: AnalysisHistory[]): DashboardSt
 }
 
 /**
- * Get dashboard statistics for a user
+ * Get dashboard statistics for a user (reads from chat_histories)
  */
 export async function getDashboardStats(userId: string): Promise<DashboardStats> {
   const history = await getAnalysisHistory(userId);
