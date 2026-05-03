@@ -58,8 +58,8 @@ function validateChatMessages(messages) {
     if (!item || typeof item !== 'object') {
       return { ok: false, error: 'each message must be an object.' };
     }
-    if (item.role !== 'user' && item.role !== 'assistant') {
-      return { ok: false, error: 'message role must be "user" or "assistant".' };
+    if (item.role !== 'user' && item.role !== 'assistant' && item.role !== 'system') {
+      return { ok: false, error: 'message role must be "user", "assistant", or "system".' };
     }
     if (typeof item.content !== 'string' || !item.content.trim()) {
       return { ok: false, error: 'message content must be a non-empty string.' };
@@ -350,6 +350,30 @@ app.get('/api/fetch-share', async (req, res) => {
     const messages = await page.evaluate((host) => {
       const results = [];
 
+      // Known UI boilerplate strings to filter out
+      const BOILERPLATE = [
+        'get responses tailored to you',
+        'log in to get answers based on saved chats',
+        'create images and upload files',
+        'get smarter responses',
+        'upload files and images',
+        'chatgpt can make mistakes',
+        'check important info',
+        'terms of use',
+        'privacy policy',
+        'sign up',
+        'log in',
+        'try chatgpt',
+        'report content',
+        'new chat',
+      ];
+
+      function isBoilerplate(text) {
+        const lower = text.toLowerCase().trim();
+        if (lower.length < 5) return true;
+        return BOILERPLATE.some((bp) => lower.includes(bp));
+      }
+
       // ── ChatGPT ──────────────────────────────────────────────────────────
       if (host.includes('chatgpt.com') || host.includes('openai.com')) {
         const messageEls = document.querySelectorAll('[data-message-author-role]');
@@ -358,7 +382,7 @@ app.get('/api/fetch-share', async (req, res) => {
             const role = el.getAttribute('data-message-author-role');
             if (role === 'user') {
               const text = el.innerText.trim();
-              if (text) results.push(text);
+              if (text && !isBoilerplate(text)) results.push(text);
             }
           });
           if (results.length > 0) return { messages: results, strategy: 'chatgpt-data-attr' };
@@ -376,7 +400,7 @@ app.get('/api/fetch-share', async (req, res) => {
                   typeof obj.content === 'string'
                     ? obj.content
                     : obj.content?.parts?.join(' ') || '';
-                if (content.trim()) results.push(content.trim());
+                if (content.trim() && !isBoilerplate(content)) results.push(content.trim());
               }
               Object.values(obj).forEach(walk);
             };

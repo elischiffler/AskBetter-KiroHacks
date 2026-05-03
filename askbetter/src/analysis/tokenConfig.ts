@@ -27,6 +27,8 @@ export interface ProviderOption {
   methodNote: string;
   /** Price per 1 million input tokens in USD */
   pricePerMillion: number;
+  /** When true, the provider tab is shown but disabled */
+  comingSoon?: boolean;
 }
 
 export const PROVIDER_OPTIONS: ProviderOption[] = [
@@ -48,8 +50,9 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     provider: 'perplexity',
     label: 'Perplexity · sonar-pro',
     model: 'sonar-pro',
-    methodNote: 'Counted via Perplexity chat completion usage field.',
+    methodNote: 'Coming Soon (Too Expensive)',
     pricePerMillion: 3.00,
+    comingSoon: true,
   },
 ];
 
