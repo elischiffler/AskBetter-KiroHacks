@@ -10,6 +10,7 @@ import {
 } from '../analysis/linkParser';
 import { Header } from '../components/Header';
 import { useAuth } from '../context/AuthContext';
+import { saveAnalysis } from '../lib/chatHistory';
 
 // ---------------------------------------------------------------------------
 // Animated grid component (CSS-only, no canvas)
@@ -57,6 +58,17 @@ export function InputPage() {
   const formRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
 
+  const navigateWithSave = async (result: import('../analysis/types').AnalysisResult) => {
+    if (user) {
+      try {
+        await saveAnalysis(user.id, result);
+      } catch {
+        // Save failed silently
+      }
+    }
+    navigate('/results', { state: { result } });
+  };
+
   // Inject keyframe animation once
   useEffect(() => {
     const id = 'grid-scroll-keyframes';
@@ -96,7 +108,7 @@ export function InputPage() {
         return;
       }
       const result = analyzeConversation(prompts);
-      navigate('/results', { state: { result } });
+      await navigateWithSave(result);
       return;
     }
 
@@ -115,7 +127,7 @@ export function InputPage() {
         return;
       }
       const result = analyzeConversation(prompts);
-      navigate('/results', { state: { result } });
+      await navigateWithSave(result);
     } catch (err: unknown) {
       const code = err instanceof Error ? err.message : 'UNKNOWN';
       setError(getLinkErrorMessage(code));

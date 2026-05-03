@@ -124,7 +124,7 @@ export function DashboardPage() {
               Complete your first conversation analysis to start tracking your progress!
             </p>
             <button
-              onClick={() => navigate('/analyze')}
+              onClick={() => navigate('/')}
               className="px-6 py-3 rounded-lg font-medium transition-all"
               style={{ backgroundColor: '#7c3aed', color: TEXT_PRIMARY }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#6d28d9')}
@@ -227,7 +227,7 @@ export function DashboardPage() {
             {/* Action Button */}
             <div className="text-center">
               <button
-                onClick={() => navigate('/analyze')}
+                onClick={() => navigate('/')}
                 className="px-8 py-4 rounded-lg font-medium text-lg transition-all"
                 style={{ backgroundColor: '#7c3aed', color: TEXT_PRIMARY }}
                 onMouseEnter={(e) => {
