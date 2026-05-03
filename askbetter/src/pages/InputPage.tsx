@@ -2,12 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link2, Loader2 } from 'lucide-react';
 import { analyzeConversation } from '../analysis/analyzer';
-import { parseConversation } from '../analysis/parser';
-import {
-  isChatGPTShareUrl,
-  getPromptsAndTimestamp,
-  getLinkErrorMessage,
-} from '../analysis/linkParser';
+import { isAIShareUrl, getPromptsFromInput, getLinkErrorMessage } from '../analysis/linkParser';
 import { Header } from '../components/Header';
 import { useAuth } from '../context/AuthContext';
 import { saveAnalysis } from '../lib/chatHistory';
@@ -104,7 +99,7 @@ export function InputPage() {
 
     try {
       setIsLoading(true);
-      const { prompts } = await getPromptsAndTimestamp(input);
+      const { prompts } = await getPromptsFromInput(input);
       if (prompts.length === 0) {
         setError('No user messages detected in that conversation.');
         return;
@@ -221,7 +216,11 @@ export function InputPage() {
           <AnimatedGrid />
           {/* Logo centered over the grid, above the vignette */}
           <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-            <img src="/logo.png" alt="Better questions, better answers" className="w-[600px] object-contain" />
+            <img
+              src="/logo.png"
+              alt="Better questions, better answers"
+              className="w-[600px] object-contain"
+            />
           </div>
         </div>
 
