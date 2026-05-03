@@ -5,7 +5,7 @@ import { analyzeConversation } from '../analysis/analyzer';
 import { parseConversation } from '../analysis/parser';
 import {
   isChatGPTShareUrl,
-  getPromptsFromInput,
+  getPromptsAndTimestamp,
   getLinkErrorMessage,
 } from '../analysis/linkParser';
 import { Header } from '../components/Header';
@@ -65,7 +65,7 @@ export function AnalyzePage() {
 
     try {
       setIsLoading(true);
-      const prompts = await getPromptsFromInput(input);
+      const { prompts } = await getPromptsAndTimestamp(input);
       if (prompts.length === 0) {
         setError('No user messages detected in that conversation.');
         return;
