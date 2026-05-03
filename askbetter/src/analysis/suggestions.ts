@@ -55,6 +55,23 @@ export function generateSummary(
   const rigorousCount = prompts.filter((p) => p.effortTier === 'rigorous').length;
   const investedCount = prompts.filter((p) => p.effortTier === 'invested').length;
 
+  // Detect creative/casual requests
+  const isCreative = prompts.some((p) =>
+    /\b(write|create|make|generate|compose|draft|design|build|song|poem|story|lyrics|essay|email|letter|script)\b/i.test(
+      p.text
+    )
+  );
+
+  // --- Short conversation summaries (1-4 prompts) ---
+  if (total <= 2) {
+    if (isCreative) {
+      return `This was a short creative request with ${total} prompt${total > 1 ? 's' : ''}. Creative delegation is fine — but you'll get better results by adding specifics: tone, audience, style, length, or examples of what you like. Try iterating on the output with follow-ups like "Make it more emotional" or "Try a completely different approach."`;
+    }
+    if (total === 1) {
+      return `You sent a single prompt with no follow-up. One-shot prompts can work for simple tasks, but you're leaving value on the table. The AI's first response is rarely its best — follow up to refine, challenge, or explore alternatives.`;
+    }
+  }
+
   let body: string;
   let challenge: string;
 
@@ -166,6 +183,20 @@ export function generateSuggestions(
   const total = prompts.length;
   const roles = countByRole(prompts);
 
+  // --- Short conversation guard ---
+  // For conversations with fewer than 5 prompts, keep feedback focused
+  // on what actually happened rather than what's generically missing.
+  const isShort = total <= 4;
+
+  // Detect if the conversation is primarily creative/casual
+  const isCreative = prompts.some(
+    (p) =>
+      p.cognitiveRole === 'outsourcing' &&
+      /\b(write|create|make|generate|compose|draft|design|build|song|poem|story|lyrics|essay|email|letter|script|code)\b/i.test(
+        p.text
+      )
+  );
+
   // --- 1. Role-based feedback (most specific, highest priority) ---
 
   if (roles.outsourcing >= 2) {
@@ -225,9 +256,15 @@ export function generateSuggestions(
   // --- 4. Pattern-specific suggestions ---
 
   if (patternIds.has('one_and_done') && suggestions.length < 6) {
-    suggestions.push(
-      'You sent one message and stopped. That\'s not a conversation — it\'s a search query. After any response, ask at least one follow-up: "Why did you do it that way?", "What are the tradeoffs?", or "What would break this?"'
-    );
+    if (isCreative) {
+      suggestions.push(
+        'You sent a single creative request. To get better results, try adding details: tone, audience, style references, or examples of what you like. One follow-up like "Make it more playful" or "Try a different angle" can dramatically improve the output.'
+      );
+    } else {
+      suggestions.push(
+        'You sent one message and stopped. That\'s not a conversation — it\'s a search query. After any response, ask at least one follow-up: "Why did you do it that way?", "What are the tradeoffs?", or "What would break this?"'
+      );
+    }
   }
 
   if (patternIds.has('fading_out') && suggestions.length < 6) {
@@ -236,7 +273,7 @@ export function generateSuggestions(
     );
   }
 
-  if (patternIds.has('no_followup_questions') && suggestions.length < 6) {
+  if (patternIds.has('no_followup_questions') && !isShort && suggestions.length < 6) {
     suggestions.push(
       'You never asked a follow-up question. Accepting every first response without pushback means you\'re trusting the output without understanding it. At minimum, ask "why" once per session.'
     );
@@ -259,24 +296,47 @@ export function generateSuggestions(
     }
   }
 
-  // --- 6. Dimension-based suggestions (fill remaining slots) ---
+  // --- 6. Dimension-based suggestions (only for longer conversations) ---
+  // Skip generic dimension advice for short conversations — it's not actionable
+  // when there wasn't enough conversation to demonstrate those skills.
 
-  if (suggestions.length < 6 && scores.curiosity < 40) {
-    suggestions.push(
-      'You rarely explored ideas. Add one "why" or "what if" per session — it forces the AI to explain, not just produce. Exploring is how you turn outputs into understanding.'
-    );
-  }
+  if (!isShort) {
+    if (suggestions.length < 6 && scores.curiosity < 40) {
+      suggestions.push(
+        'You rarely explored ideas. Add one "why" or "what if" per session — it forces the AI to explain, not just produce. Exploring is how you turn outputs into understanding.'
+      );
+    }
 
-  if (suggestions.length < 6 && scores.criticalThinking < 40) {
-    suggestions.push(
-      'You didn\'t stress-test answers. Get in the habit of asking: "What could go wrong?", "What are the edge cases?", or "What\'s the strongest argument against this?"'
-    );
-  }
+    if (suggestions.length < 6 && scores.criticalThinking < 40) {
+      suggestions.push(
+        'You didn\'t stress-test answers. Get in the habit of asking: "What could go wrong?", "What are the edge cases?", or "What\'s the strongest argument against this?"'
+      );
+    }
 
-  if (suggestions.length < 6 && scores.autonomy < 40) {
-    suggestions.push(
-      "You didn't show your own thinking. Before each prompt, write one sentence: what you already know, what you tried, or what you think the answer might be. It changes the response quality dramatically."
-    );
+    if (suggestions.length < 6 && scores.autonomy < 40) {
+      suggestions.push(
+        "You didn't show your own thinking. Before each prompt, write one sentence: what you already know, what you tried, or what you think the answer might be. It changes the response quality dramatically."
+      );
+    }
+  } else {
+    // For short conversations, give contextual advice instead
+    if (suggestions.length < 4 && total === 1) {
+      if (isCreative) {
+        suggestions.push(
+          'For creative requests, try specifying tone, audience, length, or style. "Write song lyrics about summer in the style of Frank Ocean" gives much better results than "Write song lyrics about summer."'
+        );
+      } else {
+        suggestions.push(
+          "With just one prompt, there's not much to analyze. Try having a back-and-forth: ask a question, then follow up based on the response. That's where the real learning happens."
+        );
+      }
+    }
+
+    if (suggestions.length < 4 && total >= 2 && total <= 4) {
+      suggestions.push(
+        `You had ${total} prompts — enough to start a conversation but not enough to go deep. Try extending your next session: ask follow-ups, request alternatives, or challenge the AI's reasoning.`
+      );
+    }
   }
 
   return suggestions.slice(0, 6);
