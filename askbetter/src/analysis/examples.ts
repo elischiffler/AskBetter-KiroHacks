@@ -99,7 +99,7 @@ export const CALIBRATION_EXAMPLES: CalibrationExample[] = [
     expectedIntent: 'delegation',
     expectedStrengths: ['delegation_with_learning_intent'],
     quality: 'strong',
-    notes: 'Delegation + explicit learning intent — should NOT be treated as purely passive.',
+    notes: 'Delegation + explicit learning intent — should NOT be treated as pure outsourcing.',
   },
 
   // --- Strong shows_prior_attempt ---

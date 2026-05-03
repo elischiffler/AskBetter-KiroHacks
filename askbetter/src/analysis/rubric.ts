@@ -165,12 +165,13 @@ export function scorePromptQuality(
   const lower = text.toLowerCase();
   const wordCount = text.split(/\s+/).filter(Boolean).length;
 
-  // Baseline
-  let autonomy = 50;
-  let curiosity = 50;
-  let criticalThinking = 50;
-  let specificity = 50;
-  let context = 50;
+  // Baseline — short prompts start lower; evidence is required to earn a higher score
+  const isShort = wordCount < 10;
+  let autonomy = isShort ? 30 : 50;
+  let curiosity = isShort ? 30 : 50;
+  let criticalThinking = isShort ? 30 : 50;
+  let specificity = isShort ? 20 : 40;
+  let context = isShort ? 20 : 40;
   let iteration = index > 0 ? 60 : 30;
 
   // --- Flag bonuses ---
@@ -245,14 +246,16 @@ export function scorePromptQuality(
     specificity -= 25;
     autonomy -= 15;
   }
-  // Short prompt with no context signals
+  // Short prompt with no context signals — baseline already starts low,
+  // apply a smaller additional penalty only when there are no redeeming signals
   if (
     wordCount < 10 &&
     !flags.includes('shows_prior_attempt') &&
-    !flags.includes('asks_for_reasoning')
+    !flags.includes('asks_for_reasoning') &&
+    !flags.includes('delegation_with_learning_intent')
   ) {
-    specificity -= 20;
-    context -= 20;
+    specificity -= 10;
+    context -= 10;
   }
 
   return {
