@@ -2,7 +2,9 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
 const { createClient } = require('@supabase/supabase-js');
 const { validateTokenRequest } = require('./validateTokenRequest');
 const { getProviderConfig } = require('./providerRegistry');
@@ -40,14 +42,14 @@ async function getWarmBrowser() {
   console.log('[browser] Launching warm Chromium instance...');
   _browser = await puppeteer.launch({
     executablePath: CHROMIUM_PATH,
-    headless: true,
+    headless: 'new',
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--single-process',
-      '--no-zygote',
+      '--disable-blink-features=AutomationControlled',
+      '--window-size=1920,1080',
     ],
   });
 
@@ -433,6 +435,8 @@ app.get('/api/fetch-share', async (req, res) => {
         .catch(() => {});
       await new Promise((resolve) => setTimeout(resolve, 3000));
     } else if (hostname.includes('perplexity.ai')) {
+      // Wait for Cloudflare challenge to resolve, then for content
+      await new Promise((resolve) => setTimeout(resolve, 5000));
       await page
         .waitForSelector('[class*="query"], .whitespace-pre-line, [class*="Question"]', {
           timeout: 15000,
