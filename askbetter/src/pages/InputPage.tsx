@@ -2,7 +2,12 @@ import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link2, Loader2 } from 'lucide-react';
 import { analyzeConversation } from '../analysis/analyzer';
-import { isAIShareUrl, getPromptsFromInput, getLinkErrorMessage } from '../analysis/linkParser';
+import {
+  isAIShareUrl,
+  getPromptsFromInput,
+  getLinkErrorMessage,
+  detectPlatform,
+} from '../analysis/linkParser';
 import { Header } from '../components/Header';
 import { useAuth } from '../context/AuthContext';
 import { saveAnalysis } from '../lib/chatHistory';
@@ -51,10 +56,13 @@ export function InputPage() {
   const formRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
 
-  const navigateWithSave = async (result: import('../analysis/types').AnalysisResult) => {
+  const navigateWithSave = async (
+    result: import('../analysis/types').AnalysisResult,
+    platform: string = 'unknown'
+  ) => {
     if (user) {
       try {
-        await saveAnalysis(user.id, result);
+        await saveAnalysis(user.id, result, platform);
       } catch {
         // Save failed silently
       }
@@ -104,8 +112,9 @@ export function InputPage() {
         setError('No user messages detected in that conversation.');
         return;
       }
+      const platform = detectPlatform(input) ?? 'unknown';
       const result = analyzeConversation(prompts);
-      await navigateWithSave(result);
+      await navigateWithSave(result, platform);
     } catch (err: unknown) {
       const code = err instanceof Error ? err.message : 'UNKNOWN';
       setError(getLinkErrorMessage(code));
