@@ -25,6 +25,10 @@ interface TokenUsageCardProps {
   warningNote?: string;
   /** Show a loading spinner in place of token count values */
   isLoading?: boolean;
+  /** Token count for the bot's revised prompt */
+  revisedTokens?: number | null;
+  /** Estimated cost for the revised prompt */
+  revisedCost?: number | null;
 }
 
 // ── formatting helpers ────────────────────────────────────────────────────────
@@ -49,6 +53,8 @@ export function TokenUsageCard({
   methodNote,
   warningNote,
   isLoading,
+  revisedTokens,
+  revisedCost,
 }: TokenUsageCardProps) {
   const displayLabel = providerLabel ?? label;
 
@@ -141,51 +147,107 @@ export function TokenUsageCard({
         </p>
       )}
 
-      {/* Per-prompt breakdown */}
+      {/* Average tokens per prompt */}
       {breakdown.length > 0 && (
+        <div className="mb-6">
+          <div
+            className="flex items-center justify-between rounded-xl p-4"
+            style={{ backgroundColor: 'rgba(124,58,237,0.06)', border: `1px solid ${BORDER}` }}
+          >
+            <span className="text-sm font-medium" style={{ color: TEXT_MUTED }}>
+              Avg. Tokens per Prompt
+            </span>
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" style={{ color: TEXT_MUTED }} />
+            ) : (
+              <span className="text-sm font-bold" style={{ color: TEXT_PRIMARY }}>
+                {formatTokenCount(
+                  Math.round(
+                    breakdown.reduce((sum, e) => sum + e.tokens, 0) / breakdown.length
+                  )
+                )}{' '}
+                tokens
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Revised prompt comparison */}
+      {revisedTokens != null && revisedCost != null && (
         <div className="mb-6">
           <p
             className="text-xs font-semibold tracking-widest uppercase mb-3"
-            style={{ color: TEXT_MUTED }}
+            style={{ color: '#4ade80' }}
           >
-            Per-Prompt Breakdown
+            ✨ Revised Prompt
           </p>
-          <div className="h-px mb-3" style={{ backgroundColor: BORDER }} />
-          <div className="space-y-2">
-            {isLoading
-              ? breakdown.map((entry) => (
-                  <div
-                    key={entry.index}
-                    className="flex items-center justify-between rounded-lg px-4 py-2"
-                    style={{
-                      backgroundColor: 'rgba(124,58,237,0.06)',
-                      border: `1px solid ${BORDER}`,
-                    }}
-                  >
-                    <span className="text-sm font-medium" style={{ color: TEXT_MUTED }}>
-                      Prompt {entry.index + 1}
-                    </span>
-                    <Loader2 className="w-4 h-4 animate-spin" style={{ color: TEXT_MUTED }} />
-                  </div>
-                ))
-              : breakdown.map((entry) => (
-                  <div
-                    key={entry.index}
-                    className="flex items-center justify-between rounded-lg px-4 py-2"
-                    style={{
-                      backgroundColor: 'rgba(124,58,237,0.06)',
-                      border: `1px solid ${BORDER}`,
-                    }}
-                  >
-                    <span className="text-sm font-medium" style={{ color: TEXT_MUTED }}>
-                      Prompt {entry.index + 1}
-                    </span>
-                    <span className="text-sm font-bold" style={{ color: TEXT_PRIMARY }}>
-                      {formatTokenCount(entry.tokens)} tokens
-                    </span>
-                  </div>
-                ))}
+          <div className="h-px mb-3" style={{ backgroundColor: 'rgba(34, 197, 94, 0.25)' }} />
+          <div className="grid grid-cols-2 gap-4 mb-3">
+            <div
+              className="rounded-xl p-4"
+              style={{
+                backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                border: '1px solid rgba(34, 197, 94, 0.25)',
+              }}
+            >
+              <p
+                className="text-xs font-semibold uppercase tracking-wider mb-1"
+                style={{ color: '#6b7280' }}
+              >
+                Revised Tokens
+              </p>
+              <p className="text-2xl font-black" style={{ color: '#4ade80' }}>
+                {formatTokenCount(revisedTokens)}
+              </p>
+            </div>
+            <div
+              className="rounded-xl p-4"
+              style={{
+                backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                border: '1px solid rgba(34, 197, 94, 0.25)',
+              }}
+            >
+              <p
+                className="text-xs font-semibold uppercase tracking-wider mb-1"
+                style={{ color: '#6b7280' }}
+              >
+                Revised Cost
+              </p>
+              <p className="text-2xl font-black" style={{ color: '#4ade80' }}>
+                {formatCostUsd(revisedCost)}
+              </p>
+            </div>
           </div>
+          {/* Difference indicator */}
+          {(() => {
+            const diff = revisedTokens - totalTokens;
+            const pct = totalTokens > 0 ? Math.round((diff / totalTokens) * 100) : 0;
+            const isMore = diff > 0;
+            return (
+              <div
+                className="flex items-center justify-between rounded-xl p-3"
+                style={{
+                  backgroundColor: isMore
+                    ? 'rgba(251, 146, 60, 0.08)'
+                    : 'rgba(34, 197, 94, 0.08)',
+                  border: `1px solid ${isMore ? 'rgba(251, 146, 60, 0.25)' : 'rgba(34, 197, 94, 0.25)'}`,
+                }}
+              >
+                <span className="text-xs font-medium" style={{ color: TEXT_MUTED }}>
+                  vs. Original
+                </span>
+                <span
+                  className="text-xs font-bold"
+                  style={{ color: isMore ? '#fb923c' : '#4ade80' }}
+                >
+                  {isMore ? '+' : ''}
+                  {formatTokenCount(diff)} tokens ({isMore ? '+' : ''}
+                  {pct}%)
+                </span>
+              </div>
+            );
+          })()}
         </div>
       )}
 
