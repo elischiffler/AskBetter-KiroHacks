@@ -52,3 +52,4 @@ coverage/
 *.pem
 *.key
 *.cert
+ASKBETTER_CONTEXT.md

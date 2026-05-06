@@ -185,55 +185,120 @@ function extractMessagesFromHtml(html) {
   const userMessages = [];
 
   // ── Strategy A: React Router streaming data (modern ChatGPT) ────────────
-  // ChatGPT embeds conversation data in streamController.enqueue() calls
-  // as a serialized JSON array. User messages appear as strings near "user" role markers.
-  const enqueuePattern = /streamController\.enqueue\("([\s\S]*?)"\);/gi;
-  let enqueueMatch;
-  while ((enqueueMatch = enqueuePattern.exec(html)) !== null) {
-    try {
-      // Unescape the string (it's double-escaped JSON inside a JS string)
-      const raw = enqueueMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\').replace(/\\n/g, '\n');
-      const arr = JSON.parse(raw);
+  // ChatGPT embeds conversation data in streamController.enqueue() calls.
+  // The serialized format stores user messages as: ,"message text","user",
+  // In the raw HTML this appears as: ,\"message text\",\"user\",
+  // We scan for this pattern directly rather than trying to parse the full array.
+  if (html.includes('streamController') && html.includes('\\"user\\"')) {
+    const marker = '\\",\\"user\\"';
+    let idx = 0;
 
-      if (Array.isArray(arr)) {
-        // Walk the flat array: find "user" role strings and grab nearby message text
-        for (let i = 0; i < arr.length; i++) {
-          if (arr[i] === 'user') {
-            // Look backwards for the message text — it's typically a few positions before
-            // In the serialized format, the message content appears as a long string
-            // near the "user" role marker
-            for (let j = Math.max(0, i - 10); j < i; j++) {
-              if (
-                typeof arr[j] === 'string' &&
-                arr[j].length > 10 &&
-                !arr[j].startsWith('http') &&
-                !arr[j].includes('nonce')
-              ) {
-                // Verify it's not a system/metadata string
-                const s = arr[j];
-                if (
-                  !s.startsWith('{') &&
-                  !s.startsWith('[') &&
-                  !s.startsWith('<') &&
-                  !s.includes('chatgpt.com') &&
-                  !s.includes('uuid') &&
-                  !userMessages.includes(s)
-                ) {
-                  userMessages.push(s);
-                }
-              }
-            }
+    while ((idx = html.indexOf(marker, idx)) !== -1) {
+      // Walk backwards to find the opening \" of the message string
+      // The message starts after a ,\" or [\" sequence
+      let start = idx - 1;
+      let depth = 0;
+      let found = false;
+
+      while (start > 0 && idx - start < 100000) {
+        if (
+          html[start] === '"' &&
+          start > 0 &&
+          html[start - 1] === '\\' &&
+          start >= 2 &&
+          (html[start - 2] === ',' || html[start - 2] === '[')
+        ) {
+          start = start + 1; // start after the \"
+          found = true;
+          break;
+        }
+        start--;
+      }
+
+      if (found) {
+        const rawText = html.substring(start, idx);
+        const text = rawText
+          .replace(/\\n/g, '\n')
+          .replace(/\\t/g, '\t')
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\')
+          .replace(/\\u003e/g, '>')
+          .replace(/\\u003c/g, '<')
+          .replace(/\\u0026/g, '&')
+          .trim();
+
+        if (
+          text.length > 15 &&
+          !text.startsWith('{') &&
+          !text.startsWith('http') &&
+          !text.includes('statsig') &&
+          !text.includes('djb2') &&
+          !userMessages.includes(text)
+        ) {
+          userMessages.push(text);
+        }
+      }
+
+      idx += marker.length;
+    }
+
+    // Also catch messages that use the reference-based format (no adjacent "user" string)
+    // These appear as long natural-language strings in the enqueue data
+    if (userMessages.length === 0) {
+      // Find all strings in the enqueue data that look like user messages
+      const enqueueStart = html.indexOf('streamController.enqueue(');
+      const enqueueEnd = html.lastIndexOf('streamController.close()');
+      if (enqueueStart !== -1 && enqueueEnd !== -1) {
+        const enqueueData = html.substring(enqueueStart, enqueueEnd);
+        // Match escaped strings of 30+ chars that look like natural language
+        const strPattern = /\\"((?:[^\\]|\\[^"]){30,})\\"/g;
+        let m;
+        while ((m = strPattern.exec(enqueueData)) !== null) {
+          const text = m[1]
+            .replace(/\\n/g, '\n')
+            .replace(/\\t/g, '\t')
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, '\\')
+            .replace(/\\u003e/g, '>')
+            .replace(/\\u003c/g, '<')
+            .replace(/\\u0026/g, '&')
+            .trim();
+
+          // Filter: skip UUIDs, URLs, technical strings, assistant responses (too long)
+          if (
+            text.length < 5000 &&
+            !text.match(/^[0-9a-f]{8}-[0-9a-f]{4}/) &&
+            !text.startsWith('http') &&
+            !text.startsWith('{') &&
+            !text.startsWith('[') &&
+            !text.includes('statsig') &&
+            !text.includes('experiment') &&
+            !text.match(/^routes\//) &&
+            !text.match(/^\d/) &&
+            !userMessages.includes(text)
+          ) {
+            userMessages.push(text);
+          }
+        }
+
+        // If we got candidates, filter to likely user messages (shorter, question-like)
+        // vs assistant responses (longer, markdown-heavy)
+        if (userMessages.length > 0) {
+          const filtered = userMessages.filter(
+            (m) => m.length < 2000 && !m.includes('**') && !m.includes('##') && !m.includes('---')
+          );
+          if (filtered.length > 0) {
+            userMessages.length = 0;
+            filtered.forEach((m) => userMessages.push(m));
           }
         }
       }
-    } catch {
-      // Not parseable, continue
     }
-  }
 
-  if (userMessages.length > 0) {
-    console.log(`[extract] React Router stream found ${userMessages.length} user messages`);
-    return { messages: userMessages, strategy: 'react-router-stream' };
+    if (userMessages.length > 0) {
+      console.log(`[extract] React Router stream found ${userMessages.length} user messages`);
+      return { messages: userMessages, strategy: 'react-router-stream' };
+    }
   }
 
   // ── Strategy B: Parse __NEXT_DATA__ JSON (older ChatGPT) ────────────────
@@ -387,6 +452,9 @@ app.get('/api/fetch-share', async (req, res) => {
       }
 
       console.log('[fetch-share] Fast fetch got HTML but no messages, trying Puppeteer...');
+      console.log(
+        `[fetch-share] HTML length: ${html.length}, has streamController: ${html.includes('streamController')}, has user marker: ${html.includes('\\"user\\"')}`
+      );
     } else {
       console.log(`[fetch-share] Fast fetch failed with status ${httpResponse.status}`);
     }

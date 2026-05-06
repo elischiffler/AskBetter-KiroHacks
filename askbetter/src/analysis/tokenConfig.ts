@@ -50,7 +50,7 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     label: 'Perplexity · sonar-pro',
     model: 'sonar-pro',
     methodNote: 'Coming Soon (Too Expensive)',
-    pricePerMillion: 3.00,
+    pricePerMillion: 3.0,
     comingSoon: true,
   },
 ];

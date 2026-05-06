@@ -154,9 +154,7 @@ export function TokenUsageCard({
             ) : (
               <span className="text-xs font-bold" style={{ color: TEXT_PRIMARY }}>
                 {formatTokenCount(
-                  Math.round(
-                    breakdown.reduce((sum, e) => sum + e.tokens, 0) / breakdown.length
-                  )
+                  Math.round(breakdown.reduce((sum, e) => sum + e.tokens, 0) / breakdown.length)
                 )}{' '}
                 tokens
               </span>
@@ -219,9 +217,7 @@ export function TokenUsageCard({
               <div
                 className="flex items-center justify-between rounded-lg px-3 py-2"
                 style={{
-                  backgroundColor: isMore
-                    ? 'rgba(251, 146, 60, 0.08)'
-                    : 'rgba(34, 197, 94, 0.08)',
+                  backgroundColor: isMore ? 'rgba(251, 146, 60, 0.08)' : 'rgba(34, 197, 94, 0.08)',
                   border: `1px solid ${isMore ? 'rgba(251, 146, 60, 0.25)' : 'rgba(34, 197, 94, 0.25)'}`,
                 }}
               >

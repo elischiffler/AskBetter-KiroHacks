@@ -483,16 +483,18 @@ export function ResultsPage() {
   const buildContextMessages = (): ChatMessage[] => {
     const MAX_MSG = 3900;
 
-    const promptsList = result.prompts.map((p, i) => {
-      const num = i + 1;
-      const text = p.text.length > 600 ? p.text.slice(0, 600) + '…' : p.text;
-      const missing = p.missingSignals.length > 0 ? p.missingSignals.join(', ') : 'none';
-      const flags = p.flags.length > 0 ? p.flags.join(', ') : 'none';
-      return `Prompt ${num}: "${text}"
+    const promptsList = result.prompts
+      .map((p, i) => {
+        const num = i + 1;
+        const text = p.text.length > 600 ? p.text.slice(0, 600) + '…' : p.text;
+        const missing = p.missingSignals.length > 0 ? p.missingSignals.join(', ') : 'none';
+        const flags = p.flags.length > 0 ? p.flags.join(', ') : 'none';
+        return `Prompt ${num}: "${text}"
   Score: ${p.qualityScore}/100 | Intent: ${p.primaryIntent} | Role: ${p.cognitiveRole} | Effort: ${p.effortTier}
   Flags: ${flags}
   Missing: ${missing}`;
-    }).join('\n\n');
+      })
+      .join('\n\n');
 
     const systemContent = `You are an AI prompt coach for AskBetter. The user pasted a chat history link and the app analyzed their prompts. Below is the full analysis data.
 
@@ -536,9 +538,7 @@ IMPORTANT GUARDRAILS:
 - Quote prompts naturally, use lists and paragraphs, never dump structured data.
 - When you provide a revised prompt, format as **Revised Prompt - (Est. Token Cost: __)**: "text" and wrap in [REVISED_PROMPT]...[/REVISED_PROMPT] markers.`;
 
-    const msgs: ChatMessage[] = [
-      { role: 'system' as const, content: instruction },
-    ];
+    const msgs: ChatMessage[] = [{ role: 'system' as const, content: instruction }];
 
     // Send prompts in natural language chunks
     let batch = '';
@@ -630,10 +630,7 @@ Suggestions: ${result.suggestions.join('; ')}`;
 
     // Build a list of all original prompts with scores
     const promptList = result.prompts
-      .map(
-        (p, i) =>
-          `${i + 1}. "${p.text}" (Score: ${p.qualityScore}/100)`
-      )
+      .map((p, i) => `${i + 1}. "${p.text}" (Score: ${p.qualityScore}/100)`)
       .join('\n');
 
     const contextMessages = buildContextMessages();
@@ -807,87 +804,89 @@ Suggestions: ${result.suggestions.join('; ')}`;
           {/* Live Chat + Token Usage (right, wider) */}
           <div className="lg:col-span-8 flex flex-col gap-4">
             <Card className="!p-6 !mb-0">
-          <SectionLabel>AI Assistant</SectionLabel>
-          <SectionTitle>Live Chat</SectionTitle>
+              <SectionLabel>AI Assistant</SectionLabel>
+              <SectionTitle>Live Chat</SectionTitle>
 
-          {/* Message list */}
-          <div
-            className="h-[44vh] overflow-y-auto pr-1 mb-4 rounded-xl p-3"
-            style={{ backgroundColor: 'rgba(15,10,30,0.6)', border: `1px solid ${BORDER}` }}
-          >
-            {messages.length === 0 ? (
+              {/* Message list */}
               <div
-                className="h-full flex items-center justify-center text-sm"
-                style={{ color: TEXT_DIM }}
+                className="h-[44vh] overflow-y-auto pr-1 mb-4 rounded-xl p-3"
+                style={{ backgroundColor: 'rgba(15,10,30,0.6)', border: `1px solid ${BORDER}` }}
               >
-                Send a message to start chatting.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {messages.map((m, index) => {
-                  const isUser = m.role === 'user';
-                  // Strip [REVISED_PROMPT]...[/REVISED_PROMPT] markers from display
-                  const displayContent = !isUser
-                    ? m.content.replace(/\[REVISED_PROMPT\][\s\S]*?\[\/REVISED_PROMPT\]/g, '').trim()
-                    : m.content;
+                {messages.length === 0 ? (
+                  <div
+                    className="h-full flex items-center justify-center text-sm"
+                    style={{ color: TEXT_DIM }}
+                  >
+                    Send a message to start chatting.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {messages.map((m, index) => {
+                      const isUser = m.role === 'user';
+                      // Strip [REVISED_PROMPT]...[/REVISED_PROMPT] markers from display
+                      const displayContent = !isUser
+                        ? m.content
+                            .replace(/\[REVISED_PROMPT\][\s\S]*?\[\/REVISED_PROMPT\]/g, '')
+                            .trim()
+                        : m.content;
 
-                  return (
-                    <div
-                      key={index}
-                      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className="max-w-[85%] rounded-xl px-4 py-3 text-sm whitespace-pre-wrap"
-                        style={
-                          isUser
-                            ? { backgroundColor: '#7c3aed', color: TEXT_PRIMARY }
-                            : {
-                                backgroundColor: 'rgba(139,92,246,0.1)',
-                                border: `1px solid ${BORDER}`,
-                                color: TEXT_MUTED,
-                              }
-                        }
-                      >
-                        {displayContent || (isStreaming && !isUser ? '…' : '')}
+                      return (
+                        <div
+                          key={index}
+                          className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className="max-w-[85%] rounded-xl px-4 py-3 text-sm whitespace-pre-wrap"
+                            style={
+                              isUser
+                                ? { backgroundColor: '#7c3aed', color: TEXT_PRIMARY }
+                                : {
+                                    backgroundColor: 'rgba(139,92,246,0.1)',
+                                    border: `1px solid ${BORDER}`,
+                                    color: TEXT_MUTED,
+                                  }
+                            }
+                          >
+                            {displayContent || (isStreaming && !isUser ? '…' : '')}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Action buttons after initial message */}
+                    {showActionButtons && messages.length === 1 && (
+                      <div className="flex gap-3 justify-center mt-4">
+                        <button
+                          onClick={handleDraftBetter}
+                          disabled={isStreaming}
+                          className="px-6 py-3 rounded-xl text-white text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
+                          style={{ backgroundColor: '#7c3aed' }}
+                        >
+                          ✍️ Draft Better?
+                        </button>
+                        <button
+                          onClick={handleAskOwn}
+                          disabled={isStreaming}
+                          className="px-6 py-3 rounded-xl text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
+                          style={{
+                            border: `1px solid ${BORDER}`,
+                            color: TEXT_MUTED,
+                            backgroundColor: 'transparent',
+                          }}
+                        >
+                          💬 Ask Own Questions
+                        </button>
                       </div>
-                    </div>
-                  );
-                })}
-
-                {/* Action buttons after initial message */}
-                {showActionButtons && messages.length === 1 && (
-                  <div className="flex gap-3 justify-center mt-4">
-                    <button
-                      onClick={handleDraftBetter}
-                      disabled={isStreaming}
-                      className="px-6 py-3 rounded-xl text-white text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
-                      style={{ backgroundColor: '#7c3aed' }}
-                    >
-                      ✍️ Draft Better?
-                    </button>
-                    <button
-                      onClick={handleAskOwn}
-                      disabled={isStreaming}
-                      className="px-6 py-3 rounded-xl text-sm font-semibold transition hover:opacity-90 disabled:opacity-50"
-                      style={{
-                        border: `1px solid ${BORDER}`,
-                        color: TEXT_MUTED,
-                        backgroundColor: 'transparent',
-                      }}
-                    >
-                      💬 Ask Own Questions
-                    </button>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
 
-          {chatError && (
-            <p className="text-xs mb-3" style={{ color: '#f87171' }}>
-              {chatError}
-            </p>
-          )}
+              {chatError && (
+                <p className="text-xs mb-3" style={{ color: '#f87171' }}>
+                  {chatError}
+                </p>
+              )}
 
               {/* Input row */}
               <div className="flex items-center gap-2">
@@ -944,63 +943,66 @@ Suggestions: ${result.suggestions.join('; ')}`;
 
             {/* Token Usage Card — auto-detected from share link platform */}
             <div className="flex-1 flex flex-col">
-            {(() => {
-              const opt = PROVIDER_OPTIONS.find((p) => p.provider === selectedProvider);
-              const isComingSoon = opt?.comingSoon;
+              {(() => {
+                const opt = PROVIDER_OPTIONS.find((p) => p.provider === selectedProvider);
+                const isComingSoon = opt?.comingSoon;
 
-              if (isComingSoon) {
-                return (
-                  <div
-                    className="rounded-2xl p-8 flex-1 !mb-0"
-                    style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}` }}
-                  >
-                    <div className="flex items-center gap-3 mb-5">
-                      <Coins className="w-4 h-4" style={{ color: TEXT_MUTED }} />
-                      <div>
-                        <p
-                          className="text-xs font-semibold tracking-widest uppercase mb-1"
-                          style={{ color: TEXT_MUTED }}
-                        >
-                          Token Estimation · {opt?.label}
+                if (isComingSoon) {
+                  return (
+                    <div
+                      className="rounded-2xl p-8 flex-1 !mb-0"
+                      style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}` }}
+                    >
+                      <div className="flex items-center gap-3 mb-5">
+                        <Coins className="w-4 h-4" style={{ color: TEXT_MUTED }} />
+                        <div>
+                          <p
+                            className="text-xs font-semibold tracking-widest uppercase mb-1"
+                            style={{ color: TEXT_MUTED }}
+                          >
+                            Token Estimation · {opt?.label}
+                          </p>
+                          <h2
+                            className="text-base font-black uppercase"
+                            style={{ color: TEXT_PRIMARY }}
+                          >
+                            Estimated Token Usage
+                          </h2>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-center py-8">
+                        <p className="text-sm font-semibold" style={{ color: TEXT_DIM }}>
+                          Coming Soon (Too Expensive)
                         </p>
-                        <h2 className="text-base font-black uppercase" style={{ color: TEXT_PRIMARY }}>
-                          Estimated Token Usage
-                        </h2>
                       </div>
                     </div>
-                    <div className="flex items-center justify-center py-8">
-                      <p className="text-sm font-semibold" style={{ color: TEXT_DIM }}>
-                        Coming Soon (Too Expensive)
-                      </p>
-                    </div>
-                  </div>
+                  );
+                }
+
+                const tokens =
+                  selectedProvider === 'openai'
+                    ? result.totalPromptTokens
+                    : providerTokenResult
+                      ? providerTokenResult.inputTokens
+                      : result.totalPromptTokens;
+
+                return (
+                  <TokenUsageCard
+                    className="flex-1 !mb-0"
+                    totalTokens={tokens}
+                    estimatedCostUsd={calculateCost(tokens, opt?.pricePerMillion ?? 2.5)}
+                    breakdown={result.tokenBreakdown}
+                    label={result.tokenEstimateLabel}
+                    disclaimer={result.tokenEstimateDisclaimer}
+                    isLoading={isCountingTokens}
+                    providerLabel={opt?.label}
+                    methodNote={opt?.methodNote}
+                    warningNote={providerWarning || undefined}
+                    revisedTokens={revisedTokens}
+                    revisedCost={revisedCost}
+                  />
                 );
-              }
-
-              const tokens =
-                selectedProvider === 'openai'
-                  ? result.totalPromptTokens
-                  : providerTokenResult
-                    ? providerTokenResult.inputTokens
-                    : result.totalPromptTokens;
-
-              return (
-                <TokenUsageCard
-                  className="flex-1 !mb-0"
-                  totalTokens={tokens}
-                  estimatedCostUsd={calculateCost(tokens, opt?.pricePerMillion ?? 2.5)}
-                  breakdown={result.tokenBreakdown}
-                  label={result.tokenEstimateLabel}
-                  disclaimer={result.tokenEstimateDisclaimer}
-                  isLoading={isCountingTokens}
-                  providerLabel={opt?.label}
-                  methodNote={opt?.methodNote}
-                  warningNote={providerWarning || undefined}
-                  revisedTokens={revisedTokens}
-                  revisedCost={revisedCost}
-                />
-              );
-            })()}
+              })()}
             </div>
           </div>
         </div>
