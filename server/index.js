@@ -72,8 +72,8 @@ const PORT = process.env.PORT || 3001;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = 'llama-3.1-8b-instant';
 const MAX_MESSAGES = 50;
-const MAX_CONTENT_LENGTH = 4000;
-const MAX_TOTAL_CONTENT = 20000;
+const MAX_CONTENT_LENGTH = 32000;
+const MAX_TOTAL_CONTENT = 128000;
 
 app.use(express.json({ limit: '256kb' }));
 
