@@ -1,22 +1,16 @@
 {
   "enabled": true,
-  "name": "Format on Save",
+  "name": "Format on Agent Stop",
   "description": "Runs prettier on the saved file whenever a source file is edited",
   "version": "1",
   "when": {
-    "type": "fileEdited",
-    "patterns": [
-      "askbetter/src/**/*.ts",
-      "askbetter/src/**/*.tsx",
-      "askbetter/src/**/*.css",
-      "server/**/*.js"
-    ]
+    "type": "agentStop"
   },
   "then": {
     "type": "runCommand",
     "command": "server/node_modules/.bin/prettier --write askbetter/src server/index.js",
     "timeout": 30
   },
-  "workspaceFolderName": "Kiro-Hacks-Project",
+  "workspaceFolderName": "AskBetter-KiroHacks",
   "shortName": "format-on-save"
 }

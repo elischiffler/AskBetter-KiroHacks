@@ -164,6 +164,9 @@ app.use(
       if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
       // Allow Vercel preview and production deployments
       if (origin.endsWith('.vercel.app')) return callback(null, true);
+      // Allow Chrome extensions (background service workers may send no origin,
+      // but content scripts and popups send chrome-extension://<id>)
+      if (origin.startsWith('chrome-extension://')) return callback(null, true);
       // Add your custom domain here if you have one:
       // if (origin === "https://yourdomain.com") return callback(null, true);
       callback(new Error(`CORS: origin ${origin} not allowed`));
