@@ -77,6 +77,82 @@ const MAX_TOTAL_CONTENT = 128000;
 
 app.use(express.json({ limit: '256kb' }));
 
+// ---------------------------------------------------------------------------
+// Auth middleware — verifies Supabase JWT via /auth/v1/user
+// Attaches req.userId on success; returns 401 otherwise.
+// ---------------------------------------------------------------------------
+async function requireAuth(req, res, next) {
+  const authHeader = req.headers['authorization'] || '';
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+
+  if (!match) {
+    return res.status(401).json({ error: 'Missing or malformed Authorization header.' });
+  }
+
+  const token = match[1];
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('[auth] SUPABASE_URL or SUPABASE_ANON_KEY not configured');
+    return res.status(503).json({ error: 'Auth service not configured.' });
+  }
+
+  try {
+    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${token}`,
+      },
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!userRes.ok) {
+      return res.status(401).json({ error: 'Invalid or expired token.' });
+    }
+
+    const user = await userRes.json();
+    if (!user?.id) {
+      return res.status(401).json({ error: 'Invalid token payload.' });
+    }
+
+    req.userId = user.id;
+    next();
+  } catch (err) {
+    console.error('[auth] Token verification failed:', err.message);
+    return res.status(401).json({ error: 'Token verification failed.' });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rate limiter — 20 requests per minute per userId (in-memory)
+// ---------------------------------------------------------------------------
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 20;
+const rateLimitStore = new Map(); // userId → { count, windowStart }
+
+function rateLimit(req, res, next) {
+  const userId = req.userId;
+  const now = Date.now();
+  const entry = rateLimitStore.get(userId);
+
+  if (!entry || now - entry.windowStart >= RATE_LIMIT_WINDOW_MS) {
+    rateLimitStore.set(userId, { count: 1, windowStart: now });
+    return next();
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) {
+    const retryAfter = Math.ceil((RATE_LIMIT_WINDOW_MS - (now - entry.windowStart)) / 1000);
+    res.setHeader('Retry-After', retryAfter);
+    return res.status(429).json({
+      error: `Rate limit exceeded. Max ${RATE_LIMIT_MAX} requests per minute. Retry in ${retryAfter}s.`,
+    });
+  }
+
+  entry.count += 1;
+  next();
+}
+
 function sendSseEvent(res, event, payload) {
   res.write(`event: ${event}\n`);
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
@@ -789,7 +865,7 @@ app.get('/api/fetch-share', async (req, res) => {
 // POST /api/chat/stream
 // Streams assistant response from Groq as SSE events
 // ---------------------------------------------------------------------------
-app.post('/api/chat/stream', async (req, res) => {
+app.post('/api/chat/stream', requireAuth, rateLimit, async (req, res) => {
   console.log('[chat/stream] Received request with', req.body?.messages?.length, 'messages');
   const messages = req.body?.messages;
   const validation = validateChatMessages(messages);
